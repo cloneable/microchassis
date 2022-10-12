@@ -1,0 +1,51 @@
+name: Push
+
+on: [push]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+
+      - name: Install toolchain
+        id: toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Set up cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/
+            target/
+          key: cargo-${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+        shell: bash
+
+      - name: cargo clippy
+        run: cargo clippy -- -D clippy::all
+        shell: bash
+
+      - name: cargo build
+        run: cargo build
+        shell: bash
+
+      - name: cargo test
+        run: cargo test -- --nocapture
+        shell: bash
+
+      - name: cargo package
+        run: cargo package
+        shell: bash
