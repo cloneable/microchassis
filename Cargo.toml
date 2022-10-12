@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "exampleservice"]
+
 [package]
 name = "microchassis"
 description = "[WIP] Chassis for Rust Microservices"
@@ -9,3 +12,4 @@ license = "Apache-2.0"
 exclude = [".gitignore", ".github", "target"]
 
 [dependencies]
+thiserror = "1"
