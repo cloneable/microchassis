@@ -1,6 +1,3 @@
-[workspace]
-members = [".", "exampleservice"]
-
 [package]
 name = "microchassis"
 description = "[WIP] Chassis for Rust Microservices"
@@ -13,3 +10,10 @@ exclude = [".gitignore", ".github", "target"]
 
 [dependencies]
 thiserror = "1"
+
+[features]
+default = ["std"]
+std = []
+
+[workspace]
+members = ["exampleservice"]
