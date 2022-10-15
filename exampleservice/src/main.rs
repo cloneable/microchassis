@@ -5,7 +5,7 @@ use tonic::transport::Server;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    microchassis::init().await?;
+    let shutdown_signal = microchassis::init()?;
 
     let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
     health_reporter
@@ -27,7 +27,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .add_service(proto::user_service_server::UserServiceServer::new(
             user_service,
         ))
-        .serve("[::1]:50051".parse()?)
+        .serve_with_shutdown("[::1]:50051".parse()?, shutdown_signal.recv())
         .await?;
 
     Ok(())

@@ -9,7 +9,10 @@ license = "Apache-2.0"
 exclude = [".gitignore", ".github", "target"]
 
 [dependencies]
+futures = "0.3"
+log = "0.4"
 thiserror = "1"
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [features]
 default = ["std"]
