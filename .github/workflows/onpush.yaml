@@ -48,7 +48,3 @@ jobs:
       - name: cargo test
         run: cargo test -- --nocapture
         shell: bash
-
-      - name: cargo package
-        run: cargo package
-        shell: bash
