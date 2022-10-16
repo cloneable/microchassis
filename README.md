@@ -18,3 +18,7 @@ Chassis for Rust Microservices
     - [ ] Add builder as parameter to adjust settings?
 - [ ] Provide `microchassis::shutdown()` to explicitly shut down everything.
 - [ ] Distinguish between running as service and locally and provide different defaults for logging/tracing/timezone/etc.
+- [ ] Logging preamble.
+- [ ] tokio console-subscriber for dev env instead of span exporter. (tokio_unstable)
+- [ ] config support?
+- [ ] Catch and log panics with stacktraces as log entry.
