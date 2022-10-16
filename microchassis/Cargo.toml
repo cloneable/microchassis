@@ -9,7 +9,6 @@ license = "Apache-2.0"
 exclude = [".gitignore", ".github", "target"]
 
 [dependencies]
-console-subscriber = { version = "0.1", optional = true }
 futures = "0.3"
 log = "0.4"
 thiserror = "1"
@@ -21,12 +20,28 @@ tokio = { version = "1", features = [
     "time",
     "tracing",         # console subscriber
 ] }
-tracing = { version = "0.1", features = ["log-always"] }
-tracing-log = { version = "0.1" }
+
+console-subscriber = { version = "0.1", optional = true }
+tracing = { version = "0.1", features = [
+    "log",
+    "max_level_trace",
+    "release_max_level_info",
+], optional = true }
+tracing-log = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = [
+    "json",
+    "registry",
+    "tracing-log",
+], optional = true }
 
 [features]
 default = ["service", "std"]
 service = ["tracing"]
 cli = []
 std = []
-tracing = ["console-subscriber"]
+tracing = [
+    "dep:console-subscriber",
+    "dep:tracing",
+    "dep:tracing-log",
+    "dep:tracing-subscriber",
+]
