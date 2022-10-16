@@ -1,7 +1,11 @@
+use std::io;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ChassisError {
-    #[error("init error: {0}")]
-    InitError(#[from] std::io::Error),
+pub enum InitError {
+    #[error("I/O error: {0}")]
+    IoError(#[from] io::Error),
 }
+
+#[derive(Error, Debug)]
+pub enum ShutdownError {}

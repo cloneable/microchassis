@@ -21,10 +21,11 @@ tokio = { version = "1", features = [
 ] }
 
 [features]
-default = ["service"]
+default = ["service", "std"]
+service = ["tracing"]
+cli = []
 std = []
-service = ["std"]
-cli = ["std"]
+tracing = []
 
 [workspace]
 members = ["exampleservice"]

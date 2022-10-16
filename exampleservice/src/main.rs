@@ -2,6 +2,7 @@ mod proto;
 mod user_service;
 
 use tonic::transport::Server;
+use tracing as log;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -21,6 +22,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let user_service = user_service::UserServiceImpl::default();
 
+    log::info!("Server starting");
+
     Server::builder()
         .add_service(reflection_service)
         .add_service(health_service)
@@ -29,6 +32,10 @@ async fn main() -> Result<(), anyhow::Error> {
         ))
         .serve_with_shutdown("[::1]:50051".parse()?, shutdown_signal.recv())
         .await?;
+
+    log::info!("Server shutting down");
+
+    microchassis::shutdown()?;
 
     Ok(())
 }

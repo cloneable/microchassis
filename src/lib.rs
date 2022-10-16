@@ -1,63 +1,34 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod error;
+mod logging;
+pub mod signals;
+#[cfg(feature = "tracing")]
+mod tracing;
 
-use error::ChassisError;
-use std::time::Duration;
-use tokio::{
-    signal::{
-        self,
-        unix::{signal, SignalKind},
-    },
-    sync::broadcast::{self, Receiver},
-};
+use crate::error::ShutdownError;
+use error::InitError;
+use signals::ShutdownSignal;
 
-pub fn init() -> Result<ShutdownSignal, ChassisError> {
-    let mut sigterm = signal(SignalKind::terminate())?;
-    let mut sighup = signal(SignalKind::hangup())?;
-    let (signal_write_chan, signal_read_chan) = broadcast::channel(1);
+pub fn init() -> Result<ShutdownSignal, InitError> {
+    logging::init()?;
 
-    tokio::spawn(async move {
-        loop {
-            tokio::select! {
-                biased;
-                // TODO: remove timeout
-                _ = tokio::time::sleep(Duration::from_secs(60)) => {
-                    log::debug!("shutdown due to timeout");
-                    break;
-                }
-                _ = sigterm.recv() => {
-                    log::debug!("shutdown due to SIGTERM");
-                    break;
-                }
-                _ = sighup.recv() => {
-                    log::debug!("shutdown due to SIGHUP");
-                    break;
-                }
-                _ = signal::ctrl_c() => {
-                    log::debug!("shutdown due to Ctrl-C");
-                    break;
-                }
-            }
-        }
-        if let Err(err) = signal_write_chan.send(()) {
-            log::error!("signal_write_chan.send(): {:?}", err);
-        }
-    });
+    let shutdown_signal = signals::init()?;
 
-    Ok(ShutdownSignal(signal_read_chan))
+    #[cfg(feature = "tracing")]
+    tracing::init()?;
+
+    Ok(shutdown_signal)
 }
 
-// TOOD: rewrite as Future
-pub struct ShutdownSignal(Receiver<()>);
+pub fn shutdown() -> Result<(), ShutdownError> {
+    // TODO: handle errors here?
+    #[cfg(feature = "tracing")]
+    tracing::shutdown()?;
 
-impl ShutdownSignal {
-    pub async fn recv(mut self) {
-        match self.0.recv().await {
-            Ok(_) => {}
-            Err(_err) => {
-                // TODO report error
-            }
-        }
-    }
+    signals::shutdown()?;
+
+    logging::shutdown()?;
+
+    Ok(())
 }
