@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-microchassis = { path = ".." }
+microchassis = { path = "../microchassis" }
 prost = "0.11"
 tokio = { version = "1", features = ["full"] }
 tonic = "0.8"
@@ -14,4 +14,5 @@ tonic-reflection = "0.5"
 tracing = "0.1"
 
 [build-dependencies]
+microchassis-build = { path = "../microchassis-build" }
 tonic-build = "0.8"
