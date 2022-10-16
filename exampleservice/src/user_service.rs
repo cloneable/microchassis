@@ -12,13 +12,23 @@ impl proto::user_service_server::UserService for UserServiceImpl {
         &self,
         request: Request<proto::GetUserRequest>,
     ) -> Result<Response<proto::GetUserResponse>, Status> {
-        log::info!("GetUser called with ID {}", request.get_ref().id);
-        let reply = proto::GetUserResponse {
+        let get_user_request = request.get_ref();
+        log::info!("GetUser called with ID {}", get_user_request.id);
+
+        if get_user_request.id <= 0 {
+            return Err(Status::invalid_argument(
+                "GetUserRequest.id invalid or unset",
+            ));
+        }
+        if get_user_request.id != 1 {
+            return Err(Status::not_found("User not found"));
+        }
+
+        Ok(Response::new(proto::GetUserResponse {
             user: Some(proto::User {
-                id: request.get_ref().id,
+                id: get_user_request.id,
                 name: "admin".to_string(),
             }),
-        };
-        Ok(Response::new(reply))
+        }))
     }
 }
