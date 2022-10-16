@@ -7,6 +7,7 @@ use tokio::{
     },
     sync::broadcast::{self, Receiver},
 };
+use tracing as log;
 
 pub(crate) fn init() -> Result<ShutdownSignal, InitError> {
     let mut sigterm = signal(SignalKind::terminate())?;

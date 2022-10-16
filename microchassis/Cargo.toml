@@ -19,6 +19,8 @@ tokio = { version = "1", features = [
     "sync",
     "time",
 ] }
+tracing = { version = "0.1", features = ["log-always"] }
+tracing-log = { version = "0.1" }
 
 [features]
 default = ["service", "std"]
