@@ -16,6 +16,7 @@ Chassis for Rust Microservices
     - [ ] Provide liveness/readiness endpoints.
     - [ ] Provide metrics endpoint.
     - [ ] Add builder as parameter to adjust settings?
+    - [ ] TLS config for management service and span exporter.
 - [ ] Provide `microchassis::shutdown()` to explicitly shut down everything.
 - [ ] Distinguish between running as service and locally and provide different defaults for logging/tracing/timezone/etc.
 - [ ] Logging preamble.
