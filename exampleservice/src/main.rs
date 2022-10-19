@@ -6,7 +6,7 @@ use tracing as log;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    let shutdown_signal = microchassis::init()?;
+    let shutdown_broadcast = microchassis::init()?;
 
     let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
     health_reporter
@@ -23,6 +23,8 @@ async fn main() -> Result<(), anyhow::Error> {
     let user_service = user_service::UserServiceImpl::default();
 
     log::info!("Server starting");
+
+    let shutdown_signal = shutdown_broadcast.subscribe();
 
     Server::builder()
         .add_service(reflection_service)

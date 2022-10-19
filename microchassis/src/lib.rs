@@ -8,9 +8,9 @@ mod tracing;
 
 use crate::error::ShutdownError;
 use error::InitError;
-use signals::ShutdownSignal;
+use signals::ShutdownBroadcast;
 
-pub fn init() -> Result<ShutdownSignal, InitError> {
+pub fn init() -> Result<ShutdownBroadcast, InitError> {
     logging::init()?;
 
     let shutdown_signal = signals::init()?;
