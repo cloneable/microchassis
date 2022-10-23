@@ -3,46 +3,71 @@ name = "microchassis"
 description = "[WIP] Chassis for Rust Microservices"
 version = "0.1.0"
 edition = "2021"
-authors = ["Folke Behrens <folke@gmail.com>"]
+authors = ["Folke B."]
 repository = "https://github.com/cloneable/microchassis"
 license = "Apache-2.0"
 exclude = [".gitignore", ".github", "target"]
+rust-version = "1.60"
 
 [dependencies]
 futures = "0.3"
 log = "0.4"
 thiserror = "1"
-tokio = { version = "1", features = [
+tokio = { version = "1", default-features = false, features = [
     "macros",
     "rt-multi-thread",
     "signal",
     "sync",
     "time",
-    "tracing",         # console subscriber
+] }
+hyper = { version = "0.14", default-features = false, features = [
+    "http1",
+    "http2",
+    "runtime",
+    "server",
 ] }
 
 console-subscriber = { version = "0.1", optional = true }
-tracing = { version = "0.1", features = [
-    "log",
-    "max_level_trace",
-    "release_max_level_info",
-], optional = true }
+tracing = { version = "0.1", features = ["log"], optional = true }
 tracing-log = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = [
     "json",
     "registry",
     "tracing-log",
 ], optional = true }
+opentelemetry = { version = "0.18", optional = true }
+opentelemetry-prometheus = { version = "0.11", optional = true }
+tracing-opentelemetry = { version = "0.18", features = [
+    "metrics",
+], optional = true }
+prometheus = { version = "0.13", optional = true }
+opentelemetry-otlp = { version = "0.11", optional = true }
 
 [features]
-default = ["service", "std"]
+default = [
+    "service",
+    "std",
+    "log/max_level_debug",
+    "log/release_max_level_info",
+    "tracing?/max_level_debug",
+    "tracing?/release_max_level_info",
+]
+
 service = ["metrics", "tracing"]
 cli = []
+
 std = []
+metrics = [
+    "dep:opentelemetry",
+    "dep:opentelemetry-otlp",
+    "dep:opentelemetry-prometheus",
+    "dep:prometheus",
+    "dep:tracing-opentelemetry",
+]
 tracing = [
     "dep:console-subscriber",
     "dep:tracing",
     "dep:tracing-log",
     "dep:tracing-subscriber",
+    "tokio/tracing",
 ]
-metrics = []
