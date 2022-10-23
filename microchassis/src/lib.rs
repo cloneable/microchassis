@@ -3,18 +3,23 @@
 
 pub mod error;
 mod logging;
-pub mod signals;
+#[cfg(feature = "metrics")]
+mod metrics;
+mod signals;
 #[cfg(feature = "tracing")]
 mod tracing;
 
 use crate::error::ShutdownError;
 use error::InitError;
-use signals::ShutdownBroadcast;
+pub use signals::ShutdownBroadcast;
 
 pub fn init() -> Result<ShutdownBroadcast, InitError> {
     logging::init()?;
 
     let shutdown_signal = signals::init()?;
+
+    #[cfg(feature = "metrics")]
+    metrics::init()?;
 
     #[cfg(feature = "tracing")]
     tracing::init()?;
@@ -24,8 +29,12 @@ pub fn init() -> Result<ShutdownBroadcast, InitError> {
 
 pub fn shutdown() -> Result<(), ShutdownError> {
     // TODO: handle errors here?
+
     #[cfg(feature = "tracing")]
     tracing::shutdown()?;
+
+    #[cfg(feature = "metrics")]
+    metrics::shutdown()?;
 
     signals::shutdown()?;
 

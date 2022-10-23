@@ -36,7 +36,7 @@ tracing-subscriber = { version = "0.3", features = [
 
 [features]
 default = ["service", "std"]
-service = ["tracing"]
+service = ["metrics", "tracing"]
 cli = []
 std = []
 tracing = [
@@ -45,3 +45,4 @@ tracing = [
     "dep:tracing-log",
     "dep:tracing-subscriber",
 ]
+metrics = []
