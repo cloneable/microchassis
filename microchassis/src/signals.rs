@@ -19,6 +19,7 @@ pub(crate) fn init() -> Result<ShutdownBroadcast, InitError> {
     tokio::spawn({
         let signal_write_chan = signal_write_chan.clone();
         async move {
+            // TODO: remove loop
             loop {
                 tokio::select! {
                     biased;
