@@ -42,6 +42,10 @@ tracing-opentelemetry = { version = "0.18", features = [
 ], optional = true }
 prometheus = { version = "0.13", optional = true }
 opentelemetry-otlp = { version = "0.11", optional = true }
+lazy_static = "1"
+tikv-jemallocator = { version = "0.5", features = ["profiling", "stats"] }
+tikv-jemalloc-ctl = { version = "0.5" }
+tempfile = "3"
 
 [features]
 default = [
@@ -56,7 +60,7 @@ default = [
 service = ["metrics", "tracing"]
 cli = []
 
-std = []
+std = ["tikv-jemalloc-ctl/use_std"]
 metrics = [
     "dep:opentelemetry",
     "dep:opentelemetry-otlp",
