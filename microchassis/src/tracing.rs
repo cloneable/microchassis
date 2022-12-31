@@ -34,14 +34,12 @@ pub(crate) fn init() -> Result<(), InitError> {
     }
 
     #[cfg(not(tokio_unstable))]
-    {
-        tracing_subscriber::registry().with(dev_logger).with(prod_logger).init();
-    }
+    tracing_subscriber::registry().with(dev_logger).with(prod_logger).init();
 
     Ok(())
 }
 
 pub(crate) fn shutdown() -> Result<(), ShutdownError> {
-    // TODO: shut down tracing
+    opentelemetry::global::shutdown_tracer_provider();
     Ok(())
 }
