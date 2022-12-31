@@ -1,6 +1,5 @@
 use crate::error::{InitError, ShutdownError};
-use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::prelude::*;
+use tracing_subscriber::{filter::LevelFilter, prelude::*};
 
 pub(crate) fn init() -> Result<(), InitError> {
     // TODO: enable one or the other.
@@ -36,10 +35,7 @@ pub(crate) fn init() -> Result<(), InitError> {
 
     #[cfg(not(tokio_unstable))]
     {
-        tracing_subscriber::registry()
-            .with(dev_logger)
-            .with(prod_logger)
-            .init();
+        tracing_subscriber::registry().with(dev_logger).with(prod_logger).init();
     }
 
     Ok(())

@@ -16,19 +16,14 @@ impl proto::user_service_server::UserService for UserServiceImpl {
         log::info!("GetUser called with ID {}", get_user_request.id);
 
         if get_user_request.id <= 0 {
-            return Err(Status::invalid_argument(
-                "GetUserRequest.id invalid or unset",
-            ));
+            return Err(Status::invalid_argument("GetUserRequest.id invalid or unset"));
         }
         if get_user_request.id != 1 {
             return Err(Status::not_found("User not found"));
         }
 
         Ok(Response::new(proto::GetUserResponse {
-            user: Some(proto::User {
-                id: get_user_request.id,
-                name: "admin".to_string(),
-            }),
+            user: Some(proto::User { id: get_user_request.id, name: "admin".to_string() }),
         }))
     }
 }
