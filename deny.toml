@@ -6,7 +6,7 @@ unmaintained = "warn"
 yanked = "warn"
 notice = "warn"
 ignore = [
-    #"RUSTSEC-0000-0000",
+  #"RUSTSEC-0000-0000",
 ]
 
 [licenses]
@@ -18,8 +18,8 @@ allow-osi-fsf-free = "neither"
 default = "deny"
 confidence-threshold = 0.95
 exceptions = [
-    # https://spdx.org/licenses/Unicode-DFS-2016.html
-    { allow = ["Unicode-DFS-2016"], name = "unicode-ident", version = "*" },
+  # https://spdx.org/licenses/Unicode-DFS-2016.html
+  { allow = ["Unicode-DFS-2016"], name = "unicode-ident", version = "*" },
 ]
 
 [licenses.private]
@@ -30,11 +30,11 @@ multiple-versions = "warn"
 wildcards = "deny"
 highlight = "all"
 allow = [
-    #{ name = "name", version = "*" },
+  #{ name = "name", version = "*" },
 ]
 deny = [
-    # Nothing wrong with slog. Let's just not mix logging libs.
-    { name = "slog", version = "*" },
-    # Let's try to do everything with rustls.
-    { name = "openssl", version = "*" },
+  # Nothing wrong with slog. Let's just not mix logging libs.
+  { name = "slog", version = "*" },
+  # Let's try to do everything with rustls.
+  { name = "openssl", version = "*" },
 ]

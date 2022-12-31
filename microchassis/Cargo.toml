@@ -11,67 +11,31 @@ rust-version = "1.60"
 
 [dependencies]
 futures = "0.3"
+hyper = { version = "0.14", default-features = false, features = ["http1", "http2", "runtime", "server"] }
+lazy_static = "1"
 log = "0.4"
+tempfile = "3"
 thiserror = "1"
-tokio = { version = "1", default-features = false, features = [
-    "macros",
-    "rt-multi-thread",
-    "signal",
-    "sync",
-    "time",
-] }
-hyper = { version = "0.14", default-features = false, features = [
-    "http1",
-    "http2",
-    "runtime",
-    "server",
-] }
+tikv-jemalloc-ctl = { version = "0.5" }
+tikv-jemallocator = { version = "0.5", features = ["profiling", "stats"] }
+tokio = { version = "1", default-features = false, features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
 
 console-subscriber = { version = "0.1", optional = true }
+opentelemetry = { version = "0.18", optional = true }
+opentelemetry-otlp = { version = "0.11", optional = true }
+opentelemetry-prometheus = { version = "0.11", optional = true }
+prometheus = { version = "0.13", optional = true }
 tracing = { version = "0.1", features = ["log"], optional = true }
 tracing-log = { version = "0.1", optional = true }
-tracing-subscriber = { version = "0.3", features = [
-    "json",
-    "registry",
-    "tracing-log",
-], optional = true }
-opentelemetry = { version = "0.18", optional = true }
-opentelemetry-prometheus = { version = "0.11", optional = true }
-tracing-opentelemetry = { version = "0.18", features = [
-    "metrics",
-], optional = true }
-prometheus = { version = "0.13", optional = true }
-opentelemetry-otlp = { version = "0.11", optional = true }
-lazy_static = "1"
-tikv-jemallocator = { version = "0.5", features = ["profiling", "stats"] }
-tikv-jemalloc-ctl = { version = "0.5" }
-tempfile = "3"
+tracing-opentelemetry = { version = "0.18", features = ["metrics"], optional = true }
+tracing-subscriber = { version = "0.3", features = ["json", "registry", "tracing-log"], optional = true }
 
 [features]
-default = [
-    "service",
-    "std",
-    "log/max_level_debug",
-    "log/release_max_level_info",
-    "tracing?/max_level_debug",
-    "tracing?/release_max_level_info",
-]
+default = ["log/max_level_debug", "log/release_max_level_info", "service", "std", "tracing?/max_level_debug", "tracing?/release_max_level_info"]
 
-service = ["metrics", "tracing"]
 cli = []
+service = ["metrics", "tracing"]
 
+metrics = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry-prometheus", "dep:prometheus", "dep:tracing-opentelemetry"]
 std = ["tikv-jemalloc-ctl/use_std"]
-metrics = [
-    "dep:opentelemetry",
-    "dep:opentelemetry-otlp",
-    "dep:opentelemetry-prometheus",
-    "dep:prometheus",
-    "dep:tracing-opentelemetry",
-]
-tracing = [
-    "dep:console-subscriber",
-    "dep:tracing",
-    "dep:tracing-log",
-    "dep:tracing-subscriber",
-    "tokio/tracing",
-]
+tracing = ["dep:console-subscriber", "dep:tracing", "dep:tracing-log", "dep:tracing-subscriber", "tokio/tracing"]
