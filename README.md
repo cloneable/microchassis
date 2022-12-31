@@ -23,4 +23,5 @@ Chassis for Rust Microservices
 - [ ] tokio console-subscriber for dev env instead of span exporter. (tokio_unstable)
 - [ ] config support?
 - [ ] Catch and log panics with stacktraces as log entry.
-- [ ] At endpoint for `async_backtrace::taskdump_tree(false)`
+- [ ] Add endpoint for `async_backtrace::taskdump_tree(false)`
+- [ ] Support dumping `tracing-tree`?
