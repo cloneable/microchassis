@@ -1,11 +1,11 @@
+use crate::allocator::OomPanicAllocator;
+use lazy_static::lazy_static;
 use std::{
     ffi::{CString, NulError},
     fmt, io,
     os::fd::AsRawFd,
     ptr,
 };
-
-use lazy_static::lazy_static;
 use tempfile::tempfile;
 use tikv_jemalloc_ctl::{raw as mallctl, Error as MallctlError};
 use tikv_jemallocator::Jemalloc;
@@ -13,7 +13,7 @@ use tikv_jemallocator::Jemalloc;
 // Simply force jemalloc here as global allocator.
 // TODO: document this properly.
 #[global_allocator]
-static ALLOC: Jemalloc = Jemalloc;
+static ALLOC: OomPanicAllocator<Jemalloc> = OomPanicAllocator(Jemalloc);
 
 lazy_static! {
     static ref PROF_ACTIVE_MIB: [usize; 2] = {

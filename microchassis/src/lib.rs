@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod allocator;
 pub mod error;
 mod jemalloc;
 mod logging;

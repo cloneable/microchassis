@@ -25,4 +25,4 @@ Chassis for Rust Microservices
 - [ ] Catch and log panics with stacktraces as log entry.
 - [ ] Add endpoint for `async_backtrace::taskdump_tree(false)`
 - [ ] Support dumping `tracing-tree`?
-- [ ] Allocator wrapper that panics until oom=panic is available.
+- [x] Allocator wrapper that panics until oom=panic is available.
