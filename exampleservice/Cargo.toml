@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-microchassis = { path = "../microchassis", version = "0" }
+microchassis = { path = "../microchassis" }
 prost = "0.11"
 tokio = { version = "1", features = ["full"] }
 tonic = "0.8"
@@ -16,5 +16,5 @@ tonic-reflection = "0.6"
 tracing = "0.1"
 
 [build-dependencies]
-microchassis-build = { path = "../microchassis-build", version = "0" }
+microchassis-build = { path = "../microchassis-build" }
 tonic-build = "0.8"
