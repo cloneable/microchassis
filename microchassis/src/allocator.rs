@@ -26,7 +26,7 @@ unsafe impl<T: GlobalAlloc> GlobalAlloc for OomPanicAllocator<T> {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = self.0.alloc(layout);
-        if ptr.is_null() && !PANICKING.with(|v| v.get()) {
+        if ptr.is_null() && !PANICKING.with(Cell::get) {
             panic_alloc(layout.size());
         }
         ptr
@@ -35,7 +35,7 @@ unsafe impl<T: GlobalAlloc> GlobalAlloc for OomPanicAllocator<T> {
     #[inline]
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         let ptr = self.0.alloc_zeroed(layout);
-        if ptr.is_null() && !PANICKING.with(|v| v.get()) {
+        if ptr.is_null() && !PANICKING.with(Cell::get) {
             panic_alloc(layout.size());
         }
         ptr
@@ -44,7 +44,7 @@ unsafe impl<T: GlobalAlloc> GlobalAlloc for OomPanicAllocator<T> {
     #[inline]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let ptr = self.0.realloc(ptr, layout, new_size);
-        if ptr.is_null() && !PANICKING.with(|v| v.get()) && new_size > layout.size() {
+        if ptr.is_null() && !PANICKING.with(Cell::get) && new_size > layout.size() {
             panic_realloc(layout.size(), new_size);
         }
         ptr
