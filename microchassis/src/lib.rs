@@ -7,6 +7,7 @@ mod jemalloc;
 mod logging;
 #[cfg(feature = "metrics")]
 mod metrics;
+mod runtime;
 mod signals;
 #[cfg(feature = "tracing")]
 mod tracing;
@@ -25,6 +26,8 @@ pub fn init() -> Result<ShutdownBroadcast, InitError> {
 
     #[cfg(feature = "tracing")]
     tracing::init()?;
+
+    runtime::Runtime::new().start()?;
 
     Ok(shutdown_signal)
 }
