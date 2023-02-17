@@ -1,7 +1,7 @@
 use crate::error::{InitError, ShutdownError};
 use tracing_subscriber::{filter::LevelFilter, prelude::*};
 
-pub(crate) fn init() -> Result<(), InitError> {
+pub fn init() -> Result<(), InitError> {
     // TODO: enable one or the other.
     let prod_logger = tracing_subscriber::fmt::layer()
         .json()
@@ -39,7 +39,7 @@ pub(crate) fn init() -> Result<(), InitError> {
     Ok(())
 }
 
-pub(crate) fn shutdown() -> Result<(), ShutdownError> {
+pub fn shutdown() -> Result<(), ShutdownError> {
     opentelemetry::global::shutdown_tracer_provider();
     Ok(())
 }

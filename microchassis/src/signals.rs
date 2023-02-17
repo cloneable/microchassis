@@ -1,5 +1,7 @@
+extern crate alloc;
+
 use crate::error::{InitError, ShutdownError};
-use std::sync::Arc;
+use alloc::sync::Arc;
 use tokio::{
     signal::{
         self,
@@ -9,7 +11,7 @@ use tokio::{
 };
 use tracing as log;
 
-pub(crate) fn init() -> Result<ShutdownBroadcast, InitError> {
+pub fn init() -> Result<ShutdownBroadcast, InitError> {
     // TODO: support other OSes
     let mut sigterm = signal(SignalKind::terminate())?;
     let mut sigint = signal(SignalKind::interrupt())?;
@@ -17,9 +19,10 @@ pub(crate) fn init() -> Result<ShutdownBroadcast, InitError> {
 
     let signal_write_chan = Arc::new(signal_write_chan);
     tokio::spawn({
-        let signal_write_chan = signal_write_chan.clone();
+        let signal_write_chan = Arc::clone(&signal_write_chan);
         async move {
             // TODO: remove loop
+            #[allow(clippy::arithmetic_side_effects, clippy::integer_arithmetic)]
             loop {
                 tokio::select! {
                     biased;
@@ -47,13 +50,15 @@ pub(crate) fn init() -> Result<ShutdownBroadcast, InitError> {
     Ok(ShutdownBroadcast(signal_write_chan))
 }
 
-pub(crate) fn shutdown() -> Result<(), ShutdownError> {
+pub fn shutdown() -> Result<(), ShutdownError> {
     Ok(())
 }
 
 pub struct ShutdownBroadcast(Arc<Sender<()>>);
 
 impl ShutdownBroadcast {
+    #[inline]
+    #[must_use]
     pub fn subscribe(&self) -> ShutdownReceiver {
         ShutdownReceiver(self.0.subscribe())
     }

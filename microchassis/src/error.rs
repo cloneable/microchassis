@@ -3,6 +3,7 @@ use std::io;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum InitError {
     #[error("I/O error: {0}")]
     IoError(#[from] io::Error),
@@ -15,9 +16,11 @@ pub enum InitError {
 }
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum ShutdownError {}
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum RuntimeError {
     #[error("I/O error: {0}")]
     IoError(#[from] io::Error),

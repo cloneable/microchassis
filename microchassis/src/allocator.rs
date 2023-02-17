@@ -9,12 +9,14 @@ thread_local! {
     static PANICKING: Cell<bool> = Cell::new(false);
 }
 
+#[allow(clippy::panic)]
 #[inline]
 fn panic_alloc(size: usize) -> ! {
     PANICKING.with(|v| v.set(true));
     panic!("memory allocation of {size} bytes failed");
 }
 
+#[allow(clippy::panic)]
 #[inline]
 fn panic_realloc(old_size: usize, new_size: usize) -> ! {
     PANICKING.with(|v| v.set(true));
@@ -52,6 +54,6 @@ unsafe impl<T: GlobalAlloc> GlobalAlloc for OomPanicAllocator<T> {
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        self.0.dealloc(ptr, layout)
+        self.0.dealloc(ptr, layout);
     }
 }

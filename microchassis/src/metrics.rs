@@ -8,10 +8,10 @@ use opentelemetry::{
     },
 };
 
-pub(crate) fn init() -> Result<(), InitError> {
+pub fn init() -> Result<(), InitError> {
     let controller = controllers::basic(
         processors::factory(
-            selectors::simple::histogram([1.0, 2.0, 5.0, 10.0, 20.0, 50.0]),
+            selectors::simple::histogram([1_f64, 2_f64, 5_f64, 10_f64, 20_f64, 50_f64]),
             aggregation::cumulative_temporality_selector(),
         )
         .with_memory(true),
@@ -22,7 +22,7 @@ pub(crate) fn init() -> Result<(), InitError> {
     Ok(())
 }
 
-pub(crate) fn shutdown() -> Result<(), ShutdownError> {
+pub fn shutdown() -> Result<(), ShutdownError> {
     opentelemetry::global::set_meter_provider(GlobalMeterProvider::new(NoopMeterProvider::new()));
     Ok(())
 }
