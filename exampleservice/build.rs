@@ -8,5 +8,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     println!("cargo:rerun-if-changed=proto/exampleservice.proto");
+
+    println!("cargo:rustc-cfg=tokio_unstable");
+
     Ok(())
 }

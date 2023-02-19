@@ -20,5 +20,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("cargo:rustc-env={ENV_MICROCHASSIS_BUILD_PROFILE}={profile}");
 
+    // TODO: configurable
+    println!("cargo:rustc-cfg=tokio_unstable");
+
     Ok(())
 }
