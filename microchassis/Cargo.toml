@@ -7,7 +7,10 @@ authors = ["Folke B."]
 repository = "https://github.com/cloneable/microchassis"
 license = "Apache-2.0"
 exclude = [".gitignore", ".github", "target"]
-rust-version = "1.60"
+rust-version = "1.65"
+readme = "README.md"
+keywords = ["chassis", "telemetry", "logging", "tracing", "metrics"]
+build = "build.rs"
 
 [dependencies]
 futures = "0.3"
@@ -33,7 +36,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "regis
 time = { version = "0.3", features = ["macros", "local-offset", "formatting"] }
 
 [features]
-default = ["log/max_level_debug", "log/release_max_level_info", "service", "std", "tracing?/max_level_debug", "tracing?/release_max_level_info"]
+default = ["service", "std"]
 
 cli = []
 service = ["metrics", "tracing"]
