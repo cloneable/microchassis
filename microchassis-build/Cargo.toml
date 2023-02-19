@@ -1,9 +1,0 @@
-[package]
-name = "microchassis-build"
-version = "0.0.0"
-edition = "2021"
-authors = ["Folke B."]
-repository = "https://github.com/cloneable/microchassis"
-license = "Apache-2.0"
-exclude = [".gitignore", ".github", "target"]
-rust-version = "1.60"

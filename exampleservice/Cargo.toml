@@ -16,5 +16,4 @@ tonic-reflection = "0.6"
 tracing = "0.1"
 
 [build-dependencies]
-microchassis-build = { path = "../microchassis-build" }
 tonic-build = "0.8"

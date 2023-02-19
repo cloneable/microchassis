@@ -1,6 +1,6 @@
 [workspace]
 default-members = ["microchassis"]
-members = ["microchassis", "microchassis-build", "exampleservice"]
+members = ["microchassis", "exampleservice"]
 
 # exampleservice binary test
 [profile.release]
