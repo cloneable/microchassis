@@ -21,14 +21,16 @@ tikv-jemallocator = { version = "0.5", features = ["profiling", "stats"] }
 tokio = { version = "1", default-features = false, features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
 
 console-subscriber = { version = "0.1", optional = true }
-opentelemetry = { version = "0.18", optional = true }
+opentelemetry = { version = "0.18", features = ["rt-tokio"], optional = true }
+opentelemetry_sdk = { version = "0.18", optional = true }
 opentelemetry-otlp = { version = "0.11", optional = true }
 opentelemetry-prometheus = { version = "0.11", optional = true }
 prometheus = { version = "0.13", optional = true }
-tracing = { version = "0.1", features = ["log"], optional = true }
+tracing = { version = "0.1", optional = true }
 tracing-log = { version = "0.1", optional = true }
 tracing-opentelemetry = { version = "0.18", features = ["metrics"], optional = true }
-tracing-subscriber = { version = "0.3", features = ["json", "registry", "tracing-log"], optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "registry", "tracing-log", "time", "local-time"], optional = true }
+time = { version = "0.3", features = ["macros", "local-offset", "formatting"] }
 
 [features]
 default = ["log/max_level_debug", "log/release_max_level_info", "service", "std", "tracing?/max_level_debug", "tracing?/release_max_level_info"]
@@ -38,4 +40,4 @@ service = ["metrics", "tracing"]
 
 metrics = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry-prometheus", "dep:prometheus", "dep:tracing-opentelemetry"]
 std = ["tikv-jemalloc-ctl/use_std"]
-tracing = ["dep:console-subscriber", "dep:tracing", "dep:tracing-log", "dep:tracing-subscriber", "tokio/tracing"]
+tracing = ["dep:console-subscriber", "dep:tracing", "dep:tracing-log", "dep:tracing-subscriber", "tokio/tracing", "dep:opentelemetry_sdk"]

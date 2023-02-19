@@ -1,4 +1,5 @@
 use log::SetLoggerError;
+use opentelemetry::trace::TraceError;
 use std::io;
 use thiserror::Error;
 
@@ -13,11 +14,17 @@ pub enum InitError {
 
     #[error("runtime error: {0}")]
     RuntimeError(#[from] RuntimeError),
+
+    #[error("trace error: {0}")]
+    TraceError(#[from] TraceError),
 }
 
 #[derive(Error, Debug)]
 #[non_exhaustive]
-pub enum ShutdownError {}
+pub enum ShutdownError {
+    #[error("runtime error: {0}")]
+    RuntimeError(#[from] RuntimeError),
+}
 
 #[derive(Error, Debug)]
 #[non_exhaustive]

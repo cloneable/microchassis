@@ -50,7 +50,7 @@ pub fn init() -> Result<ShutdownBroadcast, InitError> {
     #[cfg(feature = "tracing")]
     tracing::init()?;
 
-    runtime::Runtime::new().start()?;
+    let _rt = runtime::Runtime::new()?;
 
     Ok(shutdown_signal)
 }
