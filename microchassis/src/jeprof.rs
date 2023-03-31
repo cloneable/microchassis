@@ -38,12 +38,22 @@ pub fn get_pprof_symbol_handler(
 /// HTTP handler for POST /pprof/symbol.
 #[inline]
 pub fn post_pprof_symbol_handler(
-    _sym: &SymbolTable,
-    _req: Request<Vec<u8>>,
+    sym: &SymbolTable,
+    req: Request<Vec<u8>>,
 ) -> http::Result<Response<Vec<u8>>> {
-    // TODO: impl
-    let body = Vec::new();
-    response_ok(body)
+    let body = String::from_utf8_lossy(req.body());
+    let addrs = body
+        .split('+')
+        .filter_map(|addr| addr.parse().ok())
+        .map(|addr| (addr, sym.lookup_symbol(addr)))
+        .filter_map(|(addr, sym)| sym.map(|(_, sym)| (addr, sym)));
+
+    let mut body = String::new();
+    for (addr, sym) in addrs {
+        body.push_str(format!("{addr:0x}\t{sym}\r\n").as_str());
+    }
+
+    response_ok(body.into_bytes())
 }
 
 fn response_ok(body: Vec<u8>) -> http::Result<Response<Vec<u8>>> {
