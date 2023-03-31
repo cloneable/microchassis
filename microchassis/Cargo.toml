@@ -1,6 +1,6 @@
 [package]
 name = "microchassis"
-description = "[WIP] Chassis for Rust Microservices"
+description = "[WIP] Chassis for Rust Services"
 version = "0.1.0"
 edition = "2021"
 authors = ["Folke B."]
@@ -9,38 +9,15 @@ license = "Apache-2.0"
 exclude = [".gitignore", ".github", "target"]
 rust-version = "1.65"
 readme = "README.md"
-keywords = ["chassis", "telemetry", "logging", "tracing", "metrics"]
-build = "build.rs"
 
 [dependencies]
-futures = "0.3"
-hyper = { version = "0.14", default-features = false, features = ["http1", "http2", "runtime", "server"] }
 lazy_static = "1"
-log = "0.4"
 tempfile = "3"
 thiserror = "1"
 tikv-jemalloc-ctl = { version = "0.5" }
 tikv-jemallocator = { version = "0.5", features = ["profiling", "stats"] }
-tokio = { version = "1", default-features = false, features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
-
-console-subscriber = { version = "0.1", optional = true }
-opentelemetry = { version = "0.18", features = ["rt-tokio"], optional = true }
-opentelemetry_sdk = { version = "0.18", optional = true }
-opentelemetry-otlp = { version = "0.11", optional = true }
-opentelemetry-prometheus = { version = "0.11", optional = true }
-prometheus = { version = "0.13", optional = true }
-tracing = { version = "0.1", optional = true }
-tracing-log = { version = "0.1", optional = true }
-tracing-opentelemetry = { version = "0.18", features = ["metrics"], optional = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "registry", "tracing-log", "time", "local-time"], optional = true }
-time = { version = "0.3", features = ["macros", "local-offset", "formatting"] }
+tracing = { version = "0.1" }
 
 [features]
-default = ["service", "std"]
-
-cli = []
-service = ["metrics", "tracing"]
-
-metrics = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry-prometheus", "dep:prometheus", "dep:tracing-opentelemetry"]
+default = ["std"]
 std = ["tikv-jemalloc-ctl/use_std"]
-tracing = ["dep:console-subscriber", "dep:tracing", "dep:tracing-log", "dep:tracing-subscriber", "tokio/tracing", "dep:opentelemetry_sdk"]
