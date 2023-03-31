@@ -1,13 +1,31 @@
 //! Contains HTTP handler for jeprof support (/pprof/heap).
-//! Based on <https://gperftools.github.io/gperftools/pprof_remote_servers.html>.
-//! <https://jemalloc.net/jemalloc.3.html#mallctl_namespace>
-//! <https://github.com/jemalloc/jemalloc/blob/master/bin/jeprof.in>
+//! Based on <https://gperftools.github.io/gperftools/pprof_remote_servers.html>,
+//! <https://jemalloc.net/jemalloc.3.html#mallctl_namespace>,
+//! <https://github.com/jemalloc/jemalloc/blob/master/bin/jeprof.in>.
 
-use http::{header, Request, Response, StatusCode};
+use http::{header, Method, Request, Response, StatusCode};
 use std::{env, io, num::ParseIntError};
 
 #[inline]
-pub fn get_pprof_heap_handler(_req: Request<()>) -> http::Result<Response<Vec<u8>>> {
+pub fn router(sym: &SymbolTable, req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+    match (req.method(), req.uri().path()) {
+        (&Method::GET, "/pprof/heap") => get_pprof_heap_handler(req),
+        (&Method::GET, "/pprof/cmdline") => get_pprof_cmdline_handler(req),
+        (&Method::GET, "/pprof/symbol") => get_pprof_symbol_handler(sym, req),
+        (&Method::POST, "/pprof/symbol") => post_pprof_symbol_handler(sym, req),
+        _ => {
+            let body = b"Bad Request\r\n";
+            Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .header(header::CONTENT_TYPE, "application/octet-stream")
+                .header(header::CONTENT_LENGTH, body.len())
+                .body(body.to_vec())
+        }
+    }
+}
+
+#[inline]
+pub fn get_pprof_heap_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
     // TODO: impl
     let body = String::new();
     response_ok(body.into_bytes())
@@ -15,7 +33,7 @@ pub fn get_pprof_heap_handler(_req: Request<()>) -> http::Result<Response<Vec<u8
 
 /// HTTP handler for GET /pprof/cmdline.
 #[inline]
-pub fn get_pprof_cmdline_handler(_req: Request<()>) -> http::Result<Response<Vec<u8>>> {
+pub fn get_pprof_cmdline_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
     let mut body = String::new();
     for arg in env::args() {
         body.push_str(arg.as_str());
@@ -28,7 +46,7 @@ pub fn get_pprof_cmdline_handler(_req: Request<()>) -> http::Result<Response<Vec
 #[inline]
 pub fn get_pprof_symbol_handler(
     sym: &SymbolTable,
-    _req: Request<()>,
+    _req: Request<Vec<u8>>,
 ) -> http::Result<Response<Vec<u8>>> {
     let num_symbols = sym.len();
     let body = format!("num_symbols: {num_symbols}\r\n");
