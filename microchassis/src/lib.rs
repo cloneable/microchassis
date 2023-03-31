@@ -20,9 +20,11 @@
     clippy::use_self,
     clippy::unwrap_in_result, // TODO: revisit
     clippy::multiple_crate_versions,
+    clippy::needless_pass_by_value,
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod allocator;
 pub mod error;
 mod jemalloc;
+pub mod jeprof;
