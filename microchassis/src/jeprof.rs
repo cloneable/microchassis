@@ -131,13 +131,13 @@ pub fn post_pprof_symbol_handler(
     let body = String::from_utf8_lossy(req.body());
     let addrs = body
         .split('+')
-        .filter_map(|addr| addr.parse().ok())
+        .filter_map(|addr| u64::from_str_radix(addr.trim_start_matches("0x"), 16).ok())
         .map(|addr| (addr, sym.lookup_symbol(addr)))
         .filter_map(|(addr, sym)| sym.map(|(_, sym)| (addr, sym)));
 
     let mut body = String::new();
     for (addr, sym) in addrs {
-        body.push_str(format!("{addr:0x}\t{sym}\r\n").as_str());
+        body.push_str(format!("{addr:#x}\t{sym}\r\n").as_str());
     }
 
     response_ok(body.into_bytes())
@@ -210,7 +210,7 @@ impl SymbolTable {
                 continue;
             }
             // TODO: use symbol type for deduplication
-            let address: u64 = parts[0].parse()?;
+            let address = u64::from_str_radix(parts[0].trim_start_matches("0x"), 16)?;
             let symbol: String = parts[2..].join(" ");
             let symbol = rustc_demangle::demangle(symbol.as_str());
 
