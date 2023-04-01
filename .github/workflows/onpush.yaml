@@ -46,5 +46,7 @@ jobs:
         shell: bash
 
       - name: cargo test
-        run: cargo test -- --nocapture
+        env:
+          _RJEM_MALLOC_CONF: prof:true,prof_active:false,lg_prof_sample:10
+        run: cargo test -- --nocapture --include-ignored
         shell: bash

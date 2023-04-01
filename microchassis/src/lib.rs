@@ -26,5 +26,5 @@
 
 mod allocator;
 pub mod error;
-mod jemalloc;
+pub(crate) mod jemalloc;
 pub mod jeprof;
