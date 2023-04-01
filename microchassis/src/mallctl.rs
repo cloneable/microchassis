@@ -1,8 +1,7 @@
 #![allow(unsafe_code, clippy::expect_used)]
 
 use lazy_static::lazy_static;
-use std::{ffi, fmt, io, mem, os::fd::AsRawFd, ptr};
-use tempfile::tempfile;
+use std::{ffi, fmt, fs, io, mem, ptr};
 use tikv_jemalloc_ctl::{raw, Error as MallctlError};
 use tikv_jemalloc_sys::mallctlbymib;
 
@@ -102,24 +101,26 @@ unsafe fn write_mib_ptr<T>(mib: &[usize], value: *mut T) -> Result<(), Error> {
 
 /// Writes profile dump into file. If a path is not given uses a file name pattern.
 /// defined by jemalloc options.
-pub fn prof_dump_file(path: Option<&str>) -> Result<(), Error> {
+pub fn prof_dump(path: Option<&str>) -> Result<Option<Vec<u8>>, Error> {
     let ptr = match path {
         Some(s) => ffi::CString::new(s)?.into_bytes_with_nul().as_ptr(),
         None => ptr::null(),
     };
-    // SAFETY: use correct type (*char+\0) for this mallctl command.
-    unsafe { raw::write_mib(&*PROF_DUMP_MIB, ptr).map_err(Into::into) }
-}
 
-/// Returns a profile dump. Uses [`prof_dump_file`] to write to a temporary
-/// file first.
-pub fn prof_dump() -> Result<Vec<u8>, Error> {
-    let mut file = tempfile()?;
-    let path = format!("/proc/self/fd/{fd}", fd = file.as_raw_fd());
-    prof_dump_file(Some(path.as_str()))?;
-    let mut buf = Vec::new();
-    io::copy(&mut file, &mut buf)?;
-    Ok(buf)
+    // SAFETY: must use correct type (*char+\0) for this mallctl command.
+    unsafe {
+        raw::write_mib(&*PROF_DUMP_MIB, ptr)?;
+    }
+
+    match path {
+        Some(path) => {
+            let mut f = fs::File::open(path)?;
+            let mut buf = Vec::new();
+            io::copy(&mut f, &mut buf)?;
+            Ok(Some(buf))
+        }
+        None => Ok(None),
+    }
 }
 
 #[derive(thiserror::Error, fmt::Debug)]

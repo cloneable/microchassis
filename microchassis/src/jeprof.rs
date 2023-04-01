@@ -85,13 +85,19 @@ pub fn post_pprof_conf_handler(req: Request<Vec<u8>>) -> http::Result<Response<V
 pub fn get_pprof_heap_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
     match mallctl::get_prof_enabled() {
         Ok(true) => (),
-        _ => return response_err("jemalloc profiling not enabled"),
+        _ => return response_err("jemalloc profiling not enabled\r\n"),
     };
 
-    // TODO: impl
+    let Ok(f) = tempfile::Builder::new().prefix("jemalloc.").suffix(".prof").tempfile() else {
+        return response_err("cannot create temporary file for profile dump\r\n");
+    };
 
-    let body = String::new();
-    response_ok(body.into_bytes())
+    let Ok(profile) = mallctl::prof_dump(f.path().to_str()) else {
+        return response_err("failed to dump profile\r\n");
+    };
+
+    let filename = f.path().file_name().expect("proper filename from tempfile");
+    response_ok_binary(profile.expect("profile not None"), filename.to_string_lossy().as_ref())
 }
 
 /// HTTP handler for GET /pprof/cmdline.
@@ -156,6 +162,15 @@ fn response_ok(body: Vec<u8>) -> http::Result<Response<Vec<u8>>> {
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/plain; charset=UTF-8")
+        .header(header::CONTENT_LENGTH, body.len())
+        .body(body)
+}
+
+fn response_ok_binary(body: Vec<u8>, filename: &str) -> http::Result<Response<Vec<u8>>> {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{filename}\""))
         .header(header::CONTENT_LENGTH, body.len())
         .body(body)
 }
