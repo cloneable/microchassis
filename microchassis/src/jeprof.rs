@@ -3,12 +3,15 @@
 //! <https://jemalloc.net/jemalloc.3.html#mallctl_namespace>,
 //! <https://github.com/jemalloc/jemalloc/blob/master/bin/jeprof.in>.
 
+use crate::mallctl;
 use http::{header, Method, Request, Response, StatusCode};
 use std::{env, io, num::ParseIntError};
 
 #[inline]
 pub fn router(sym: &SymbolTable, req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
     match (req.method(), req.uri().path()) {
+        (&Method::GET, "/pprof/conf") => get_pprof_conf_handler(req),
+        (&Method::POST, "/pprof/conf") => post_pprof_conf_handler(req),
         (&Method::GET, "/pprof/heap") => get_pprof_heap_handler(req),
         (&Method::GET, "/pprof/cmdline") => get_pprof_cmdline_handler(req),
         (&Method::GET, "/pprof/symbol") => get_pprof_symbol_handler(sym, req),
@@ -25,8 +28,68 @@ pub fn router(sym: &SymbolTable, req: Request<Vec<u8>>) -> http::Result<Response
 }
 
 #[inline]
+pub fn get_pprof_conf_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+    match mallctl::get_prof_enabled() {
+        Ok(true) => (),
+        _ => return response_err("jemalloc profiling not enabled"),
+    };
+
+    let Ok(state) = mallctl::get_prof_active() else {
+        return response_err("failed to read prof.active\r\n");
+    };
+    let Ok(sample) = mallctl::get_prof_lg_sample() else {
+        return response_err("failed to read prof.lg_sample\r\n");
+    };
+    let body = format!("prof.active:{state},prof.lg_sample:{sample}\r\n");
+    response_ok(body.into_bytes())
+}
+
+#[inline]
+pub fn post_pprof_conf_handler(req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+    match mallctl::get_prof_enabled() {
+        Ok(true) => (),
+        _ => return response_err("jemalloc profiling not enabled\r\n"),
+    };
+
+    let query = parse_malloc_conf_query(req.uri().query());
+
+    for (name, value) in query {
+        if let Err(e) = match name {
+            "prof.reset" => {
+                let Some(sample) = value.map(|v| v.parse().ok()) else {
+                    return response_err(format!("invalid prof.reset value: {value:?}\r\n").as_str());
+                };
+                mallctl::prof_reset(sample)
+            }
+            "prof.active" => {
+                let Some(value) = value else {
+                    return response_err("prof.active needs value\r\n");
+                };
+                let Some(state) = value.parse().ok() else {
+                    return response_err(format!("invalid prof.active value: {value:?}\r\n").as_str());
+                };
+                mallctl::set_prof_active(state)
+            }
+            _ => {
+                return response_err(format!("{name}={value:?} unknown\r\n").as_str());
+            }
+        } {
+            return response_err(format!("{name}={value:?} failed: {e}\r\n").as_str());
+        }
+    }
+
+    response_ok(b"OK\r\n".to_vec())
+}
+
+#[inline]
 pub fn get_pprof_heap_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+    match mallctl::get_prof_enabled() {
+        Ok(true) => (),
+        _ => return response_err("jemalloc profiling not enabled"),
+    };
+
     // TODO: impl
+
     let body = String::new();
     response_ok(body.into_bytes())
 }
@@ -74,12 +137,35 @@ pub fn post_pprof_symbol_handler(
     response_ok(body.into_bytes())
 }
 
+fn parse_malloc_conf_query(query: Option<&str>) -> Vec<(&str, Option<&str>)> {
+    query
+        .map(|q| {
+            q.split(',')
+                .map(|kv| kv.splitn(2, ':').collect::<Vec<_>>())
+                .map(|v| match v.len() {
+                    1 => (v[0], None),
+                    2 => (v[0], Some(v[1])),
+                    _ => unreachable!(),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn response_ok(body: Vec<u8>) -> http::Result<Response<Vec<u8>>> {
     Response::builder()
         .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header(header::CONTENT_TYPE, "text/plain; charset=UTF-8")
         .header(header::CONTENT_LENGTH, body.len())
         .body(body)
+}
+
+fn response_err(msg: &str) -> http::Result<Response<Vec<u8>>> {
+    Response::builder()
+        .status(StatusCode::BAD_REQUEST)
+        .header(header::CONTENT_TYPE, "text/plain; charset=UTF-8")
+        .header(header::CONTENT_LENGTH, msg.len())
+        .body(msg.as_bytes().to_owned())
 }
 
 #[derive(Default, Debug)]
