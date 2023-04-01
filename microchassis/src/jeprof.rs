@@ -5,7 +5,7 @@
 
 use crate::mallctl;
 use http::{header, Method, Request, Response, StatusCode};
-use std::{env, io, num::ParseIntError};
+use std::{env, io, num::ParseIntError, process::Command};
 
 #[inline]
 pub fn router(sym: &SymbolTable, req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
@@ -189,16 +189,13 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
-    #[must_use]
     #[inline]
-    pub fn len(&self) -> usize {
-        self.sym.len()
-    }
-
-    #[must_use]
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.sym.is_empty()
+    pub fn load() -> io::Result<Self> {
+        let nm_output = run_nm()?;
+        let mut sym = SymbolTable::default();
+        sym.read_nm(nm_output.as_ref())
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok(sym)
     }
 
     #[inline]
@@ -214,14 +211,27 @@ impl SymbolTable {
             }
             // TODO: use symbol type for deduplication
             let address: u64 = parts[0].parse()?;
-            // TODO: rustc_demangle::demangle
             let symbol: String = parts[2..].join(" ");
-            self.sym.push((address, symbol));
+            let symbol = rustc_demangle::demangle(symbol.as_str());
+
+            self.sym.push((address, symbol.to_string()));
         }
 
         self.sym.sort();
 
         Ok(())
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.sym.len()
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.sym.is_empty()
     }
 
     #[must_use]
@@ -238,6 +248,12 @@ impl SymbolTable {
             }
         }
     }
+}
+
+fn run_nm() -> io::Result<Vec<u8>> {
+    let exepath = env::current_exe()?;
+    let output = Command::new("nm").args(["--numeric-sort", "--demangle"]).arg(exepath).output()?;
+    Ok(output.stdout)
 }
 
 #[cfg(test)]
