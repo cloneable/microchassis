@@ -17,7 +17,7 @@
 //! <https://jemalloc.net/jemalloc.3.html#mallctl_namespace>,
 //! <https://github.com/jemalloc/jemalloc/blob/master/bin/jeprof.in>.
 
-use crate::mallctl;
+use crate::profiling::mallctl;
 use http::{header, Method, Request, Response, StatusCode};
 use std::{env, io, num::ParseIntError, process::Command};
 

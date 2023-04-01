@@ -40,5 +40,4 @@
 
 mod allocator;
 pub mod error;
-pub mod jeprof;
-pub(crate) mod mallctl;
+pub mod profiling;

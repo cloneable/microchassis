@@ -19,12 +19,6 @@ use std::{ffi, fmt, fs, io, mem, ptr};
 use tikv_jemalloc_ctl::{raw, Error as MallctlError};
 use tikv_jemalloc_sys::mallctlbymib;
 
-// TODO: make OomPanicAllocator optional
-#[cfg(feature = "set-jemalloc-global")]
-#[global_allocator]
-static ALLOC: crate::allocator::OomPanicAllocator<tikv_jemallocator::Jemalloc> =
-    crate::allocator::OomPanicAllocator(tikv_jemallocator::Jemalloc);
-
 lazy_static! {
     static ref OPT_PROF_MIB: [usize; 2] = {
         let mut mib = [0; 2];
