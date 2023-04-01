@@ -3,7 +3,7 @@
 use lazy_static::lazy_static;
 use std::{ffi, fmt, io, mem, os::fd::AsRawFd, ptr};
 use tempfile::tempfile;
-use tikv_jemalloc_ctl::{raw as mallctl, Error as MallctlError};
+use tikv_jemalloc_ctl::{raw, Error as MallctlError};
 use tikv_jemalloc_sys::mallctlbymib;
 
 // TODO: make OomPanicAllocator optional
@@ -15,32 +15,32 @@ static ALLOC: crate::allocator::OomPanicAllocator<tikv_jemallocator::Jemalloc> =
 lazy_static! {
     static ref OPT_PROF_MIB: [usize; 2] = {
         let mut mib = [0; 2];
-        mallctl::name_to_mib(b"opt.prof\0", &mut mib).expect("mib");
+        raw::name_to_mib(b"opt.prof\0", &mut mib).expect("mib");
         mib
     };
     static ref OPT_LG_PROF_SAMPLE_MIB: [usize; 2] = {
         let mut mib = [0; 2];
-        mallctl::name_to_mib(b"opt.lg_prof_sample\0", &mut mib).expect("mib");
+        raw::name_to_mib(b"opt.lg_prof_sample\0", &mut mib).expect("mib");
         mib
     };
     static ref PROF_ACTIVE_MIB: [usize; 2] = {
         let mut mib = [0; 2];
-        mallctl::name_to_mib(b"prof.active\0", &mut mib).expect("mib");
+        raw::name_to_mib(b"prof.active\0", &mut mib).expect("mib");
         mib
     };
     static ref PROF_DUMP_MIB: [usize; 2] = {
         let mut mib = [0; 2];
-        mallctl::name_to_mib(b"prof.dump\0", &mut mib).expect("mib");
+        raw::name_to_mib(b"prof.dump\0", &mut mib).expect("mib");
         mib
     };
     static ref PROF_RESET_MIB: [usize; 2] = {
         let mut mib = [0; 2];
-        mallctl::name_to_mib(b"prof.reset\0", &mut mib).expect("mib");
+        raw::name_to_mib(b"prof.reset\0", &mut mib).expect("mib");
         mib
     };
     static ref PROF_LG_SAMPLE_MIB: [usize; 2] = {
         let mut mib = [0; 2];
-        mallctl::name_to_mib(b"prof.lg_sample\0", &mut mib).expect("mib");
+        raw::name_to_mib(b"prof.lg_sample\0", &mut mib).expect("mib");
         mib
     };
 }
@@ -48,25 +48,25 @@ lazy_static! {
 /// Returns jemalloc opt.prof value.
 pub fn get_prof_enabled() -> Result<bool, Error> {
     // SAFETY: use correct type (bool) for this mallctl command.
-    unsafe { mallctl::read_mib(&*OPT_PROF_MIB).map_err(Into::into) }
+    unsafe { raw::read_mib(&*OPT_PROF_MIB).map_err(Into::into) }
 }
 
 /// Returns jemalloc opt.lg_prof_sample value.
 pub fn get_lg_prof_sample_opt() -> Result<usize, Error> {
     // SAFETY: use correct type (bool) for this mallctl command.
-    unsafe { mallctl::read_mib(&*OPT_LG_PROF_SAMPLE_MIB).map_err(Into::into) }
+    unsafe { raw::read_mib(&*OPT_LG_PROF_SAMPLE_MIB).map_err(Into::into) }
 }
 
 /// Sets jemalloc prof.active value.
 pub fn set_prof_active(value: bool) -> Result<(), Error> {
     // SAFETY: use correct type (bool) for this mallctl command.
-    unsafe { mallctl::write_mib(&*PROF_ACTIVE_MIB, value).map_err(Into::into) }
+    unsafe { raw::write_mib(&*PROF_ACTIVE_MIB, value).map_err(Into::into) }
 }
 
 /// Returns jemalloc prof.active value.
 pub fn get_prof_active() -> Result<bool, Error> {
     // SAFETY: use correct type (bool) for this mallctl command.
-    unsafe { mallctl::read_mib(&*PROF_ACTIVE_MIB).map_err(Into::into) }
+    unsafe { raw::read_mib(&*PROF_ACTIVE_MIB).map_err(Into::into) }
 }
 
 /// Sets jemalloc prof.reset value.
@@ -83,7 +83,7 @@ pub fn prof_reset(sample: Option<usize>) -> Result<(), Error> {
 /// Returns jemalloc prof.lg_sample value.
 pub fn get_prof_lg_sample() -> Result<usize, Error> {
     // SAFETY: use correct type (size_t) for this mallctl command.
-    unsafe { mallctl::read_mib(&*PROF_LG_SAMPLE_MIB).map_err(Into::into) }
+    unsafe { raw::read_mib(&*PROF_LG_SAMPLE_MIB).map_err(Into::into) }
 }
 
 unsafe fn write_mib_ptr<T>(mib: &[usize], value: *mut T) -> Result<(), Error> {
@@ -108,7 +108,7 @@ pub fn prof_dump_file(path: Option<&str>) -> Result<(), Error> {
         None => ptr::null(),
     };
     // SAFETY: use correct type (*char+\0) for this mallctl command.
-    unsafe { mallctl::write_mib(&*PROF_DUMP_MIB, ptr).map_err(Into::into) }
+    unsafe { raw::write_mib(&*PROF_DUMP_MIB, ptr).map_err(Into::into) }
 }
 
 /// Returns a profile dump. Uses [`prof_dump_file`] to write to a temporary
