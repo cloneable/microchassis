@@ -1,17 +1,16 @@
 #![allow(unsafe_code, clippy::expect_used)]
 
-use crate::allocator::OomPanicAllocator;
 use lazy_static::lazy_static;
 use std::{ffi, fmt, io, mem, os::fd::AsRawFd, ptr};
 use tempfile::tempfile;
 use tikv_jemalloc_ctl::{raw as mallctl, Error as MallctlError};
 use tikv_jemalloc_sys::mallctlbymib;
-use tikv_jemallocator::Jemalloc;
 
-// Simply force jemalloc here as global allocator.
-// TODO: document this properly.
+// TODO: make OomPanicAllocator optional
+#[cfg(feature = "set-jemalloc-global")]
 #[global_allocator]
-static ALLOC: OomPanicAllocator<Jemalloc> = OomPanicAllocator(Jemalloc);
+static ALLOC: crate::allocator::OomPanicAllocator<tikv_jemallocator::Jemalloc> =
+    crate::allocator::OomPanicAllocator(tikv_jemallocator::Jemalloc);
 
 lazy_static! {
     static ref OPT_PROF_MIB: [usize; 2] = {

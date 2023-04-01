@@ -20,5 +20,6 @@ tikv-jemallocator = { version = "0.5", features = ["profiling", "stats"] }
 tracing = { version = "0.1" }
 
 [features]
-default = ["std"]
+default = ["std", "set-jemalloc-global"]
 std = ["tikv-jemalloc-ctl/use_std"]
+set-jemalloc-global = []
