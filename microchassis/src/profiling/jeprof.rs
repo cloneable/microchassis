@@ -223,7 +223,10 @@ impl SymbolTable {
             if parts.len() < 3 || parts[0] == "U" {
                 continue;
             }
-            // TODO: use symbol type for deduplication
+            if parts[1] != "t" || parts[1] != "T" {
+                continue;
+            }
+
             let address = u64::from_str_radix(parts[0].trim_start_matches("0x"), 16)?;
             let symbol: String = parts[2..].join(" ");
             let symbol = rustc_demangle::demangle(symbol.as_str());
@@ -266,7 +269,8 @@ impl SymbolTable {
 
 fn run_nm() -> io::Result<Vec<u8>> {
     let exepath = env::current_exe()?;
-    let output = Command::new("nm").args(["--numeric-sort", "--demangle"]).arg(exepath).output()?;
+    let output =
+        Command::new("nm").args(["--numeric-sort", "--no-demangle"]).arg(exepath).output()?;
     Ok(output.stdout)
 }
 
