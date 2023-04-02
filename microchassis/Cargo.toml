@@ -27,7 +27,8 @@ std = ["tikv-jemalloc-ctl/use_std"]
 jemalloc-profiling = []
 oompanic-allocator = []
 set-jemalloc-global = []
+disable_aslr = ["dep:libc"]
 
 [[bin]]
 name = "disable_aslr"
-required-features = ["libc"]
+required-features = ["disable_aslr"]
