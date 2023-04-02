@@ -16,7 +16,7 @@
 
 use lazy_static::lazy_static;
 use std::{ffi, fmt, fs, io, mem, ptr};
-use tikv_jemalloc_ctl::{raw, Error as MallctlError};
+use tikv_jemalloc_ctl::{raw, stats_print, Error as MallctlError};
 use tikv_jemalloc_sys::mallctlbymib;
 
 lazy_static! {
@@ -149,6 +149,14 @@ pub fn dump(path: Option<&str>) -> Result<Option<Vec<u8>>, Error> {
         }
         None => Ok(None),
     }
+}
+
+pub fn stats() -> Result<Vec<u8>, Error> {
+    let mut output = Vec::with_capacity(4096);
+    let mut options = stats_print::Options::default();
+    options.skip_per_arena = true;
+    stats_print::stats_print(&mut output, options)?;
+    Ok(output)
 }
 
 // Direct call to mallctl to allow passing null ptr if parameter is optional.

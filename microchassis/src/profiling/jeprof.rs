@@ -30,6 +30,7 @@ pub fn router(sym: &SymbolTable, req: Request<Vec<u8>>) -> http::Result<Response
         (&Method::GET, "/pprof/cmdline") => get_pprof_cmdline_handler(req),
         (&Method::GET, "/pprof/symbol") => get_pprof_symbol_handler(sym, req),
         (&Method::POST, "/pprof/symbol") => post_pprof_symbol_handler(sym, req),
+        (&Method::GET, "/pprof/stats") => get_pprof_stats_handler(req),
         _ => {
             let body = b"Bad Request\r\n";
             Response::builder()
@@ -155,6 +156,16 @@ pub fn post_pprof_symbol_handler(
     }
 
     response_ok(body.into_bytes())
+}
+
+/// HTTP handler for GET /pprof/stats.
+#[inline]
+pub fn get_pprof_stats_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+    let body = match mallctl::stats() {
+        Ok(body) => body,
+        Err(e) => return response_err(format!("failed to print stats: {e}\r\n").as_str()),
+    };
+    response_ok(body)
 }
 
 fn parse_malloc_conf_query(query: Option<&str>) -> Vec<(&str, Option<&str>)> {
