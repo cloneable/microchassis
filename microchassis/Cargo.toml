@@ -1,7 +1,7 @@
 [package]
 name = "microchassis"
 description = "[WIP] Chassis for Rust Services"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 authors = ["Folke B."]
 repository = "https://github.com/cloneable/microchassis"
