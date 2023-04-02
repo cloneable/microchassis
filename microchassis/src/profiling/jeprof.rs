@@ -43,15 +43,15 @@ pub fn router(sym: &SymbolTable, req: Request<Vec<u8>>) -> http::Result<Response
 
 #[inline]
 pub fn get_pprof_conf_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
-    match mallctl::get_prof_enabled() {
+    match mallctl::enabled() {
         Ok(true) => (),
         _ => return response_err("jemalloc profiling not enabled"),
     };
 
-    let Ok(state) = mallctl::get_prof_active() else {
+    let Ok(state) = mallctl::active() else {
         return response_err("failed to read prof.active\r\n");
     };
-    let Ok(sample) = mallctl::get_prof_lg_sample() else {
+    let Ok(sample) = mallctl::sample_interval() else {
         return response_err("failed to read prof.lg_sample\r\n");
     };
     let body = format!("prof.active:{state},prof.lg_sample:{sample}\r\n");
@@ -60,7 +60,7 @@ pub fn get_pprof_conf_handler(_req: Request<Vec<u8>>) -> http::Result<Response<V
 
 #[inline]
 pub fn post_pprof_conf_handler(req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
-    match mallctl::get_prof_enabled() {
+    match mallctl::enabled() {
         Ok(true) => (),
         _ => return response_err("jemalloc profiling not enabled\r\n"),
     };
@@ -73,7 +73,7 @@ pub fn post_pprof_conf_handler(req: Request<Vec<u8>>) -> http::Result<Response<V
                 let Some(sample) = value.map(|v| v.parse().ok()) else {
                     return response_err(format!("invalid prof.reset value: {value:?}\r\n").as_str());
                 };
-                mallctl::prof_reset(sample)
+                mallctl::reset(sample)
             }
             "prof.active" => {
                 let Some(value) = value else {
@@ -82,7 +82,7 @@ pub fn post_pprof_conf_handler(req: Request<Vec<u8>>) -> http::Result<Response<V
                 let Some(state) = value.parse().ok() else {
                     return response_err(format!("invalid prof.active value: {value:?}\r\n").as_str());
                 };
-                mallctl::set_prof_active(state)
+                mallctl::set_active(state)
             }
             _ => {
                 return response_err(format!("{name}={value:?} unknown\r\n").as_str());
@@ -97,7 +97,7 @@ pub fn post_pprof_conf_handler(req: Request<Vec<u8>>) -> http::Result<Response<V
 
 #[inline]
 pub fn get_pprof_heap_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
-    match mallctl::get_prof_enabled() {
+    match mallctl::enabled() {
         Ok(true) => (),
         _ => return response_err("jemalloc profiling not enabled\r\n"),
     };
@@ -106,7 +106,7 @@ pub fn get_pprof_heap_handler(_req: Request<Vec<u8>>) -> http::Result<Response<V
         return response_err("cannot create temporary file for profile dump\r\n");
     };
 
-    let Ok(profile) = mallctl::prof_dump(f.path().to_str()) else {
+    let Ok(profile) = mallctl::dump(f.path().to_str()) else {
         return response_err("failed to dump profile\r\n");
     };
 
@@ -223,7 +223,7 @@ impl SymbolTable {
             if parts.len() < 3 || parts[0] == "U" {
                 continue;
             }
-            if parts[1] != "t" || parts[1] != "T" {
+            if parts[1] != "t" && parts[1] != "T" {
                 continue;
             }
 

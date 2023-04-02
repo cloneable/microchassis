@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod jeprof;
-pub(crate) mod mallctl;
+pub mod mallctl;
 
 // TODO: make OomPanicAllocator optional
 #[cfg(feature = "set-jemalloc-global")]
