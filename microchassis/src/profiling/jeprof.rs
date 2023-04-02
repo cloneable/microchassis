@@ -19,7 +19,7 @@
 
 use crate::profiling::mallctl;
 use http::{header, Method, Request, Response, StatusCode};
-use std::{env, io, num::ParseIntError, process::Command};
+use std::{env, fs::File, io, num::ParseIntError, process::Command};
 
 #[inline]
 pub fn router(sym: &SymbolTable, req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
@@ -211,20 +211,57 @@ fn response_err(msg: &str) -> http::Result<Response<Vec<u8>>> {
 #[derive(Default, Debug)]
 pub struct SymbolTable {
     sym: Vec<(u64, String)>,
+    vstart: u64,
+    vend: u64,
+    fstart: u64,
 }
 
 impl SymbolTable {
     #[inline]
     pub fn load() -> io::Result<Self> {
         let nm_output = run_nm()?;
-        let mut sym = SymbolTable::default();
+        let (vstart, vend, fstart) = Self::load_mapping()?;
+        let mut sym = SymbolTable { sym: Vec::default(), vstart, vend, fstart };
         sym.read_nm(nm_output.as_ref())
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         Ok(sym)
     }
 
-    #[inline]
-    pub fn read_nm(&mut self, output: &[u8]) -> Result<(), ParseIntError> {
+    fn load_mapping() -> io::Result<(u64, u64, u64)> {
+        #[cfg(target_os = "linux")]
+        {
+            use std::io::Read;
+
+            // TODO: clean up maps parsing, store all exec mappings
+            let exepath = env::current_exe()?;
+            let mut f = File::open("/proc/self/maps")?;
+            let mut buf = String::with_capacity(4096);
+            f.read_to_string(&mut buf)?;
+            for line in buf.lines() {
+                let parts: Vec<_> = line.splitn(6, ' ').map(str::trim).collect();
+                if parts.len() < 6 {
+                    continue;
+                }
+                if parts[5] == exepath.to_string_lossy() && parts[1] == "r-xp" {
+                    let addr_range: Vec<_> = parts[0]
+                        .splitn(2, '-')
+                        .filter_map(|n| u64::from_str_radix(n, 16).ok())
+                        .collect();
+                    if addr_range.len() != 2 {
+                        continue;
+                    }
+                    let file_offset = u64::from_str_radix(parts[2], 16)
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+                    return Ok((addr_range[0], addr_range[1], file_offset));
+                }
+            }
+        }
+
+        Ok((u64::MAX, u64::MAX, 0))
+    }
+
+    fn read_nm(&mut self, output: &[u8]) -> Result<(), ParseIntError> {
         use std::io::prelude::*;
 
         let b = io::Cursor::new(output);
@@ -265,7 +302,13 @@ impl SymbolTable {
     #[must_use]
     #[inline]
     pub fn lookup_symbol(&self, addr: u64) -> Option<&(u64, String)> {
-        match self.sym.binary_search_by_key(&addr, |(saddr, _)| *saddr) {
+        let lookup_addr = if addr >= self.vstart && addr < self.vend {
+            addr - self.vstart + self.fstart
+        } else {
+            addr
+        };
+
+        match self.sym.binary_search_by_key(&lookup_addr, |(saddr, _)| *saddr) {
             Ok(index) => self.sym.get(index),
             Err(index) => {
                 if index == 0 {
@@ -293,6 +336,9 @@ mod tests {
     fn test_symtab_lookup_symbol() {
         let symtab = SymbolTable {
             sym: vec![(123, "Abc".to_string()), (456, "Def".to_string()), (789, "Xyz".to_string())],
+            vstart: 0,
+            vend: u64::MAX,
+            fstart: 0,
         };
 
         assert_eq!(None, symtab.lookup_symbol(100));
