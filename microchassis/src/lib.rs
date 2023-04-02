@@ -38,6 +38,16 @@
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod allocator;
 pub mod error;
+#[cfg(feature = "jemalloc-profiling")]
+pub mod oompanic;
 pub mod profiling;
+
+#[cfg(all(feature = "set-jemalloc-global", feature = "oompanic-allocator"))]
+#[global_allocator]
+static ALLOC: crate::oompanic::Allocator<tikv_jemallocator::Jemalloc> =
+    crate::oompanic::Allocator(tikv_jemallocator::Jemalloc);
+
+#[cfg(all(feature = "set-jemalloc-global", not(feature = "oompanic-allocator")))]
+#[global_allocator]
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;

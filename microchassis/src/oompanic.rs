@@ -17,7 +17,9 @@ use core::{
     cell::Cell,
 };
 
-pub struct OomPanicAllocator<T: GlobalAlloc>(pub T);
+/// A global allocator wrapper that does what the oom=panic setting
+/// hopefully soon will do.
+pub struct Allocator<T: GlobalAlloc>(pub T);
 
 thread_local! {
     static PANICKING: Cell<bool> = Cell::new(false);
@@ -25,25 +27,18 @@ thread_local! {
 
 #[allow(clippy::panic)]
 #[inline]
-fn panic_alloc(size: usize) -> ! {
+fn panic_alloc() -> ! {
     PANICKING.with(|v| v.set(true));
-    panic!("memory allocation of {size} bytes failed");
-}
-
-#[allow(clippy::panic)]
-#[inline]
-fn panic_realloc(old_size: usize, new_size: usize) -> ! {
-    PANICKING.with(|v| v.set(true));
-    panic!("memory reallocation from {old_size} to {new_size} bytes failed");
+    panic!("memory allocation failed");
 }
 
 #[allow(unsafe_code)]
-unsafe impl<T: GlobalAlloc> GlobalAlloc for OomPanicAllocator<T> {
+unsafe impl<T: GlobalAlloc> GlobalAlloc for Allocator<T> {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = self.0.alloc(layout);
         if ptr.is_null() && !PANICKING.with(Cell::get) {
-            panic_alloc(layout.size());
+            panic_alloc();
         }
         ptr
     }
@@ -52,7 +47,7 @@ unsafe impl<T: GlobalAlloc> GlobalAlloc for OomPanicAllocator<T> {
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         let ptr = self.0.alloc_zeroed(layout);
         if ptr.is_null() && !PANICKING.with(Cell::get) {
-            panic_alloc(layout.size());
+            panic_alloc();
         }
         ptr
     }
@@ -61,7 +56,7 @@ unsafe impl<T: GlobalAlloc> GlobalAlloc for OomPanicAllocator<T> {
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let ptr = self.0.realloc(ptr, layout, new_size);
         if ptr.is_null() && !PANICKING.with(Cell::get) && new_size > layout.size() {
-            panic_realloc(layout.size(), new_size);
+            panic_alloc();
         }
         ptr
     }

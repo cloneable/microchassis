@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "jemalloc-profiling")]
 pub mod jeprof;
+#[cfg(feature = "jemalloc-profiling")]
 pub mod mallctl;
-
-// TODO: make OomPanicAllocator optional
-#[cfg(feature = "set-jemalloc-global")]
-#[global_allocator]
-static ALLOC: crate::allocator::OomPanicAllocator<tikv_jemallocator::Jemalloc> =
-    crate::allocator::OomPanicAllocator(tikv_jemallocator::Jemalloc);
