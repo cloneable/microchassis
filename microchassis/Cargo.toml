@@ -10,10 +10,10 @@ exclude = [".gitignore", ".github", "target"]
 rust-version = "1.65"
 
 [dependencies]
+backtrace = { version = "0.3", optional = true }
 http = "0.2"
 lazy_static = "1"
 libc = { version = "0.2", optional = true }
-rustc-demangle = "0.1"
 tempfile = "3"
 thiserror = "1"
 tikv-jemalloc-ctl = "0.5"
@@ -24,7 +24,7 @@ tracing = { version = "0.1" }
 [features]
 default = ["std", "jemalloc-profiling", "set-jemalloc-global"]
 std = ["tikv-jemalloc-ctl/use_std"]
-jemalloc-profiling = []
+jemalloc-profiling = ["dep:backtrace"]
 oompanic-allocator = []
 set-jemalloc-global = []
 disable_aslr = ["dep:libc"]

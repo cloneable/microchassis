@@ -9,34 +9,41 @@ The microchassis is all about increasing the observability of Rust binaries.
 Example intergration with `hyper` endpoint:
 
 ```rust
-use microchassis::profiling::jeprof;
+use microchassis::profiling::{jeprof, mallctl};
 ```
 
 ```rust
-    let symbol_table = Arc::new(jeprof::SymbolTable::load()?);
-    let make_service = hyper::service::make_service_fn(move |_conn| {
-        let symbol_table = Arc::clone(&symbol_table);
-        let service = hyper::service::service_fn(move |req| handle(Arc::clone(&symbol_table), req));
-        async move { Ok::<_, io::Error>(service) }
-    });
-    let addr = SocketAddr::from(([127, 0, 0, 1], 12345));
-    tokio::spawn(async move { hyper::Server::bind(&addr).serve(make_service).await });
+    std::thread::Builder::new().name("pprof".to_string()).spawn(move || {
+        mallctl::set_thread_active(false).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let make_service = hyper::service::make_service_fn(move |_conn| {
+            let service = hyper::service::service_fn(move |req| handle(req));
+            async move { Ok::<_, io::Error>(service) }
+        });
+        let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+        if let Err(e) =
+            rt.block_on(async move { hyper::Server::bind(&addr).serve(make_service).await })
+        {
+            Err(io::Error::new(io::ErrorKind::Other, e))
+        } else {
+            Ok(())
+        }
+    })?;
 ```
 
 ```rust
-async fn handle(
-    symbol_table: Arc<jeprof::SymbolTable>,
-    req: hyper::Request<hyper::Body>,
-) -> io::Result<hyper::Response<hyper::Body>> {
+async fn handle(req: hyper::Request<hyper::Body>) -> io::Result<hyper::Response<hyper::Body>> {
     let (parts, body) = req.into_parts();
-    let body = hyper::body::to_bytes(body).await?;
+    let body =
+        hyper::body::to_bytes(body).await.map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     let req = hyper::Request::from_parts(parts, body.into());
 
-    let resp = jeprof::router(symbol_table.as_ref(), req)?;
+    let resp = jeprof::router(req).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-    let (parts, body) = resp.into_parts();
-    let body = hyper::Body::from(body);
-    let resp = hyper::Response::from_parts(parts, body);
+    let resp = resp.map(hyper::Body::from);
 
     Ok(resp)
 }
@@ -51,9 +58,10 @@ strip = false
 ```
 
 Disable ASLR if necessary or install the `disable_aslr` helper tool.
+On Linux you should prefer `setarch -R`.
 
 ```shell
-cargo install microchassis
+cargo install microchassis --features=disable_aslr
 ```
 
 Use package manager to install `jeprof` or download from
