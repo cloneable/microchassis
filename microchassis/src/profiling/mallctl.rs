@@ -64,65 +64,93 @@ pub fn enabled() -> Result<bool, Error> {
     unsafe { raw::read_mib(&*MIB_OPT_PROF).map_err(Into::into) }
 }
 
+// TODO: consider a guard pattern instead of checking for each command.
+fn if_enabled<F, T>(f: F) -> Result<T, Error>
+where
+    F: FnOnce() -> Result<T, Error>,
+{
+    if enabled()? {
+        f()
+    } else {
+        Err(Error::ProfilingDisabled)
+    }
+}
+
 /// Writes `prof.active`.
 #[inline]
 pub fn set_active(value: bool) -> Result<(), Error> {
-    // SAFETY: use correct type (bool) for this mallctl command.
-    unsafe { raw::write_mib(&*MIB_PROF_ACTIVE, value).map_err(Into::into) }
+    if_enabled(move || {
+        // SAFETY: use correct type (bool) for this mallctl command.
+        unsafe { raw::write_mib(&*MIB_PROF_ACTIVE, value).map_err(Into::into) }
+    })
 }
 
 /// Reads `prof.active`.
 #[inline]
 pub fn active() -> Result<bool, Error> {
-    // SAFETY: use correct type (bool) for this mallctl command.
-    unsafe { raw::read_mib(&*MIB_PROF_ACTIVE).map_err(Into::into) }
+    if_enabled(move || {
+        // SAFETY: use correct type (bool) for this mallctl command.
+        unsafe { raw::read_mib(&*MIB_PROF_ACTIVE).map_err(Into::into) }
+    })
 }
 
 /// Writes `prof.thread_active_init`.
 #[inline]
 pub fn set_thread_active_init(value: bool) -> Result<(), Error> {
-    // SAFETY: use correct param type (bool) for this mallctl command.
-    unsafe { raw::write_mib(&*MIB_PROF_THREAD_ACTIVE_INIT, value).map_err(Into::into) }
+    if_enabled(move || {
+        // SAFETY: use correct param type (bool) for this mallctl command.
+        unsafe { raw::write_mib(&*MIB_PROF_THREAD_ACTIVE_INIT, value).map_err(Into::into) }
+    })
 }
 
 /// Reads `prof.thread_active_init`.
 #[inline]
 pub fn thread_active_init() -> Result<bool, Error> {
-    // SAFETY: use correct return type (bool) for this mallctl command.
-    unsafe { raw::read_mib(&*MIB_PROF_THREAD_ACTIVE_INIT).map_err(Into::into) }
+    if_enabled(move || {
+        // SAFETY: use correct return type (bool) for this mallctl command.
+        unsafe { raw::read_mib(&*MIB_PROF_THREAD_ACTIVE_INIT).map_err(Into::into) }
+    })
 }
 
 /// Writes `thread.prof.active`.
 #[inline]
 pub fn set_thread_active(value: bool) -> Result<(), Error> {
-    // SAFETY: use correct param type (bool) for this mallctl command.
-    unsafe { raw::write_mib(&*MIB_THREAD_PROF_ACTIVE, value).map_err(Into::into) }
+    if_enabled(move || {
+        // SAFETY: use correct param type (bool) for this mallctl command.
+        unsafe { raw::write_mib(&*MIB_THREAD_PROF_ACTIVE, value).map_err(Into::into) }
+    })
 }
 
 /// Reads `thread.prof.active`.
 #[inline]
 pub fn thread_active() -> Result<bool, Error> {
-    // SAFETY: use correct return type (bool) for this mallctl command.
-    unsafe { raw::read_mib(&*MIB_THREAD_PROF_ACTIVE).map_err(Into::into) }
+    if_enabled(move || {
+        // SAFETY: use correct return type (bool) for this mallctl command.
+        unsafe { raw::read_mib(&*MIB_THREAD_PROF_ACTIVE).map_err(Into::into) }
+    })
 }
 
 /// Writes `prof.reset`. Optionally settings a new sample interval.
 #[allow(clippy::option_if_let_else, clippy::borrow_as_ptr)]
 #[inline]
 pub fn reset(sample: Option<usize>) -> Result<(), Error> {
-    let value = match sample {
-        Some(mut sample) => &mut sample as *mut _,
-        None => ptr::null_mut(),
-    };
-    // SAFETY: use correct param type (*size_t) for this mallctl command.
-    unsafe { write_mib_ptr(&*MIB_PROF_RESET, value).map_err(Into::into) }
+    if_enabled(move || {
+        let value = match sample {
+            Some(mut sample) => &mut sample as *mut _,
+            None => ptr::null_mut(),
+        };
+        // SAFETY: use correct param type (*size_t) for this mallctl command.
+        unsafe { write_mib_ptr(&*MIB_PROF_RESET, value).map_err(Into::into) }
+    })
 }
 
 /// Reads `prof.lg_sample`.
 #[inline]
 pub fn sample_interval() -> Result<usize, Error> {
-    // SAFETY: use correct return type (size_t) for this mallctl command.
-    unsafe { raw::read_mib(&*MIB_PROF_LG_SAMPLE).map_err(Into::into) }
+    if_enabled(move || {
+        // SAFETY: use correct return type (size_t) for this mallctl command.
+        unsafe { raw::read_mib(&*MIB_PROF_LG_SAMPLE).map_err(Into::into) }
+    })
 }
 
 /// Writes `prof.dump` causing a profile dump into a file.
@@ -130,25 +158,27 @@ pub fn sample_interval() -> Result<usize, Error> {
 /// If not, jemalloc dumps the profile to a file based on name pattern.
 #[inline]
 pub fn dump(path: Option<&str>) -> Result<Option<Vec<u8>>, Error> {
-    let ptr = match path {
-        Some(s) => ffi::CString::new(s)?.into_bytes_with_nul().as_ptr(),
-        None => ptr::null(),
-    };
+    if_enabled(move || {
+        let ptr = match path {
+            Some(s) => ffi::CString::new(s)?.into_bytes_with_nul().as_ptr(),
+            None => ptr::null(),
+        };
 
-    // SAFETY: use correct param type (*char+\0) for this mallctl command.
-    unsafe {
-        raw::write_mib(&*MIB_PROF_DUMP, ptr)?;
-    }
-
-    match path {
-        Some(path) => {
-            let mut f = fs::File::open(path)?;
-            let mut buf = Vec::new();
-            io::copy(&mut f, &mut buf)?;
-            Ok(Some(buf))
+        // SAFETY: use correct param type (*char+\0) for this mallctl command.
+        unsafe {
+            raw::write_mib(&*MIB_PROF_DUMP, ptr)?;
         }
-        None => Ok(None),
-    }
+
+        match path {
+            Some(path) => {
+                let mut f = fs::File::open(path)?;
+                let mut buf = Vec::new();
+                io::copy(&mut f, &mut buf)?;
+                Ok(Some(buf))
+            }
+            None => Ok(None),
+        }
+    })
 }
 
 pub fn stats() -> Result<Vec<u8>, Error> {
@@ -176,6 +206,9 @@ unsafe fn write_mib_ptr<T>(mib: &[usize], value: *mut T) -> Result<(), Error> {
 
 #[derive(thiserror::Error, fmt::Debug)]
 pub enum Error {
+    #[error("mallctl: profiling disabled")]
+    ProfilingDisabled,
+
     #[error("mallctl error: {0}")]
     Mallctl(#[from] MallctlError),
 
