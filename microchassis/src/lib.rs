@@ -35,6 +35,7 @@
     clippy::unwrap_in_result, // TODO: revisit
     clippy::multiple_crate_versions,
     clippy::needless_pass_by_value,
+    clippy::implicit_hasher,
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 

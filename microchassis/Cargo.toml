@@ -20,6 +20,8 @@ tikv-jemalloc-ctl = "0.5"
 tikv-jemalloc-sys = "0.5"
 tikv-jemallocator = { version = "0.5", features = ["profiling", "stats"] }
 tracing = { version = "0.1" }
+actix-web = { version = "4", optional = true }
+futures-util = { version = "0.3", optional = true }
 
 [features]
 default = ["std", "jemalloc-profiling", "set-jemalloc-global"]
@@ -28,6 +30,7 @@ jemalloc-profiling = ["dep:backtrace"]
 oompanic-allocator = []
 set-jemalloc-global = []
 disable_aslr = ["dep:libc"]
+actix-handlers = ["dep:actix-web", "dep:futures-util"]
 
 [[bin]]
 name = "disable_aslr"

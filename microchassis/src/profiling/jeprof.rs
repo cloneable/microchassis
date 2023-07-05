@@ -19,18 +19,18 @@
 
 use crate::profiling::mallctl;
 use http::{header, Method, Request, Response, StatusCode};
-use std::env;
+use std::{collections::HashMap, env, fmt};
 
 #[inline]
 pub fn router(req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/pprof/conf") => get_pprof_conf_handler(req),
-        (&Method::POST, "/pprof/conf") => post_pprof_conf_handler(req),
-        (&Method::GET, "/pprof/heap") => get_pprof_heap_handler(req),
-        (&Method::GET, "/pprof/cmdline") => get_pprof_cmdline_handler(req),
-        (&Method::GET, "/pprof/symbol") => get_pprof_symbol_handler(req),
-        (&Method::POST, "/pprof/symbol") => post_pprof_symbol_handler(req),
-        (&Method::GET, "/pprof/stats") => get_pprof_stats_handler(req),
+        (&Method::GET, "/pprof/conf") => JeprofHandler(get_pprof_conf_handler).call(req),
+        (&Method::POST, "/pprof/conf") => JeprofHandler(post_pprof_conf_handler).call(req),
+        (&Method::GET, "/pprof/heap") => JeprofHandler(get_pprof_heap_handler).call(req),
+        (&Method::GET, "/pprof/cmdline") => JeprofHandler(get_pprof_cmdline_handler).call(req),
+        (&Method::GET, "/pprof/symbol") => JeprofHandler(get_pprof_symbol_handler).call(req),
+        (&Method::POST, "/pprof/symbol") => JeprofHandler(post_pprof_symbol_handler).call(req),
+        (&Method::GET, "/pprof/stats") => JeprofHandler(get_pprof_stats_handler).call(req),
         _ => {
             let body = b"Bad Request\r\n";
             Response::builder()
@@ -42,101 +42,207 @@ pub fn router(req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
     }
 }
 
+#[cfg(feature = "actix-handlers")]
 #[inline]
-pub fn get_pprof_conf_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
-    match mallctl::enabled() {
-        Ok(true) => (),
-        _ => return response_err("jemalloc profiling not enabled"),
-    };
+pub fn actix_routes(cfg: &mut actix_web::web::ServiceConfig) {
+    cfg.service(
+        actix_web::web::scope("/pprof")
+            .route("/conf", actix_web::web::get().to(JeprofHandler(get_pprof_conf_handler)))
+            .route("/conf", actix_web::web::post().to(JeprofHandler(post_pprof_conf_handler)))
+            .route("/heap", actix_web::web::get().to(JeprofHandler(get_pprof_heap_handler)))
+            .route("/cmdline", actix_web::web::get().to(JeprofHandler(get_pprof_cmdline_handler)))
+            .route("/symbol", actix_web::web::get().to(JeprofHandler(get_pprof_symbol_handler)))
+            .route("/symbol", actix_web::web::post().to(JeprofHandler(post_pprof_symbol_handler)))
+            .route("/stats", actix_web::web::get().to(JeprofHandler(get_pprof_stats_handler))),
+    );
+}
 
-    let Ok(state) = mallctl::active() else {
-        return response_err("failed to read prof.active\r\n");
-    };
-    let Ok(sample) = mallctl::sample_interval() else {
-        return response_err("failed to read prof.lg_sample\r\n");
-    };
-    let body = format!("prof.active:{state},prof.lg_sample:{sample}\r\n");
-    response_ok(body.into_bytes())
+#[derive(Debug)]
+pub struct ErrorResponse(String);
+
+impl fmt::Display for ErrorResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ERROR: {}", self.0)
+    }
+}
+
+#[cfg(feature = "actix-handlers")]
+impl actix_web::ResponseError for ErrorResponse {}
+
+#[derive(Clone, Debug)]
+struct JeprofHandler<F>(F)
+where
+    F: Fn(&[u8], &HashMap<String, String>) -> Result<(Vec<u8>, Option<String>), ErrorResponse>
+        + Clone
+        + 'static;
+
+impl<F> JeprofHandler<F>
+where
+    F: Fn(&[u8], &HashMap<String, String>) -> Result<(Vec<u8>, Option<String>), ErrorResponse>
+        + Clone
+        + 'static,
+{
+    fn call(&self, req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+        let params: HashMap<String, String> = parse_malloc_conf_query(req.uri().query())
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), v.unwrap_or_default().to_string()))
+            .collect();
+        match self.0(req.body(), &params) {
+            Ok((body, Some(content_disposition))) => response_ok_binary(body, &content_disposition),
+            Ok((body, None)) => response_ok(body),
+            Err(err) => response_err(&err.0),
+        }
+    }
+}
+
+#[cfg(feature = "actix-handlers")]
+impl<F>
+    actix_web::Handler<(actix_web::web::Payload, actix_web::web::Query<HashMap<String, String>>)>
+    for JeprofHandler<F>
+where
+    F: Fn(&[u8], &HashMap<String, String>) -> Result<(Vec<u8>, Option<String>), ErrorResponse>
+        + Clone
+        + 'static,
+{
+    type Output = Result<actix_web::HttpResponse, ErrorResponse>;
+    type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Self::Output>>>;
+
+    fn call(
+        &self,
+        (mut body, query): (
+            actix_web::web::Payload,
+            actix_web::web::Query<HashMap<String, String>>,
+        ),
+    ) -> Self::Future {
+        use futures_util::StreamExt as _;
+
+        let f = self.0.clone();
+        Box::pin(async move {
+            let mut data = Vec::<u8>::new();
+            while let Some(item) = body.next().await {
+                data.extend_from_slice(&item.map_err(|e| ErrorResponse(e.to_string()))?);
+            }
+            f(&data, &query.0).map(|(body, content_disposition)| {
+                let mut resp = actix_web::HttpResponse::Ok();
+                if let Some(filename) = content_disposition {
+                    resp.insert_header(actix_web::http::header::ContentDisposition::attachment(
+                        filename,
+                    ));
+                }
+                resp.body(actix_web::web::Bytes::from(body))
+            })
+        })
+    }
 }
 
 #[inline]
-pub fn post_pprof_conf_handler(req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+pub fn get_pprof_conf_handler(
+    _body: &[u8],
+    _params: &HashMap<String, String>,
+) -> Result<(Vec<u8>, Option<String>), ErrorResponse> {
     match mallctl::enabled() {
         Ok(true) => (),
-        _ => return response_err("jemalloc profiling not enabled\r\n"),
+        _ => return Err(ErrorResponse("jemalloc profiling not enabled".to_owned())),
     };
 
-    let query = parse_malloc_conf_query(req.uri().query());
+    let Ok(state) = mallctl::active() else {
+        return Err(ErrorResponse("failed to read prof.active\r\n".to_owned()));
+    };
+    let Ok(sample) = mallctl::sample_interval() else {
+        return Err(ErrorResponse("failed to read prof.lg_sample\r\n".to_owned()));
+    };
+    let body = format!("prof.active:{state},prof.lg_sample:{sample}\r\n");
+    Ok((body.into_bytes(), None))
+}
 
-    for (name, value) in query {
-        if let Err(e) = match name {
+#[inline]
+pub fn post_pprof_conf_handler(
+    _body: &[u8],
+    params: &HashMap<String, String>,
+) -> Result<(Vec<u8>, Option<String>), ErrorResponse> {
+    match mallctl::enabled() {
+        Ok(true) => (),
+        _ => return Err(ErrorResponse("jemalloc profiling not enabled\r\n".to_owned())),
+    };
+
+    for (name, value) in params {
+        if let Err(e) = match name.as_str() {
             "prof.reset" => {
-                let Some(sample) = value.map(|v| v.parse().ok()) else {
-                    return response_err(format!("invalid prof.reset value: {value:?}\r\n").as_str());
-                };
-                mallctl::reset(sample)
+                let sample = value.parse().map_err(|_| {
+                    ErrorResponse(format!("invalid prof.reset value: {value:?}\r\n"))
+                })?;
+                mallctl::reset(Some(sample))
             }
             "prof.active" => {
-                let Some(value) = value else {
-                    return response_err("prof.active needs value\r\n");
-                };
                 let Some(state) = value.parse().ok() else {
-                    return response_err(format!("invalid prof.active value: {value:?}\r\n").as_str());
+                    return Err(ErrorResponse(format!("invalid prof.active value: {value:?}\r\n")));
                 };
                 mallctl::set_active(state)
             }
             _ => {
-                return response_err(format!("{name}={value:?} unknown\r\n").as_str());
+                return Err(ErrorResponse(format!("{name}={value:?} unknown\r\n")));
             }
         } {
-            return response_err(format!("{name}={value:?} failed: {e}\r\n").as_str());
+            return Err(ErrorResponse(format!("{name}={value:?} failed: {e}\r\n")));
         }
     }
 
-    response_ok(b"OK\r\n".to_vec())
+    Ok((b"OK\r\n".to_vec(), None))
 }
 
 #[inline]
-pub fn get_pprof_heap_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+pub fn get_pprof_heap_handler(
+    _body: &[u8],
+    _params: &HashMap<String, String>,
+) -> Result<(Vec<u8>, Option<String>), ErrorResponse> {
     match mallctl::enabled() {
         Ok(true) => (),
-        _ => return response_err("jemalloc profiling not enabled\r\n"),
+        _ => return Err(ErrorResponse("jemalloc profiling not enabled\r\n".to_owned())),
     };
 
     let Ok(f) = tempfile::Builder::new().prefix("jemalloc.").suffix(".prof").tempfile() else {
-        return response_err("cannot create temporary file for profile dump\r\n");
+        return Err(ErrorResponse("cannot create temporary file for profile dump\r\n".to_owned()));
     };
 
     let Ok(profile) = mallctl::dump(f.path().to_str()) else {
-        return response_err("failed to dump profile\r\n");
+        return Err(ErrorResponse("failed to dump profile\r\n".to_owned()));
     };
 
     let filename = f.path().file_name().expect("proper filename from tempfile");
-    response_ok_binary(profile.expect("profile not None"), filename.to_string_lossy().as_ref())
+    Ok((profile.expect("profile not None"), Some(filename.to_string_lossy().to_string())))
 }
 
 /// HTTP handler for GET /pprof/cmdline.
 #[inline]
-pub fn get_pprof_cmdline_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+pub fn get_pprof_cmdline_handler(
+    _body: &[u8],
+    _params: &HashMap<String, String>,
+) -> Result<(Vec<u8>, Option<String>), ErrorResponse> {
     let mut body = String::new();
     for arg in env::args() {
         body.push_str(arg.as_str());
         body.push_str("\r\n");
     }
-    response_ok(body.into_bytes())
+    Ok((body.into_bytes(), None))
 }
 
 /// HTTP handler for GET /pprof/symbol.
 #[inline]
-pub fn get_pprof_symbol_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+pub fn get_pprof_symbol_handler(
+    _body: &[u8],
+    _params: &HashMap<String, String>,
+) -> Result<(Vec<u8>, Option<String>), ErrorResponse> {
     // TODO: any quick way to check if binary is stripped?
     let body = b"num_symbols: 1\r\n";
-    response_ok(body.to_vec())
+    Ok((body.to_vec(), None))
 }
 
 /// HTTP handler for POST /pprof/symbol.
 #[inline]
-pub fn post_pprof_symbol_handler(req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+pub fn post_pprof_symbol_handler(
+    body: &[u8],
+    _params: &HashMap<String, String>,
+) -> Result<(Vec<u8>, Option<String>), ErrorResponse> {
     fn lookup_symbol(addr: u64) -> Option<String> {
         let mut s: Option<String> = None;
         backtrace::resolve(addr as *mut _, |symbol| {
@@ -145,7 +251,7 @@ pub fn post_pprof_symbol_handler(req: Request<Vec<u8>>) -> http::Result<Response
         s
     }
 
-    let body = String::from_utf8_lossy(req.body());
+    let body = String::from_utf8_lossy(body);
     let addrs = body
         .split('+')
         .filter_map(|addr| u64::from_str_radix(addr.trim_start_matches("0x"), 16).ok())
@@ -157,17 +263,20 @@ pub fn post_pprof_symbol_handler(req: Request<Vec<u8>>) -> http::Result<Response
         body.push_str(format!("{addr:#x}\t{sym}\r\n").as_str());
     }
 
-    response_ok(body.into_bytes())
+    Ok((body.into_bytes(), None))
 }
 
 /// HTTP handler for GET /pprof/stats.
 #[inline]
-pub fn get_pprof_stats_handler(_req: Request<Vec<u8>>) -> http::Result<Response<Vec<u8>>> {
+pub fn get_pprof_stats_handler(
+    _body: &[u8],
+    _params: &HashMap<String, String>,
+) -> Result<(Vec<u8>, Option<String>), ErrorResponse> {
     let body = match mallctl::stats() {
         Ok(body) => body,
-        Err(e) => return response_err(format!("failed to print stats: {e}\r\n").as_str()),
+        Err(e) => return Err(ErrorResponse(format!("failed to print stats: {e}\r\n"))),
     };
-    response_ok(body)
+    Ok((body, None))
 }
 
 fn parse_malloc_conf_query(query: Option<&str>) -> Vec<(&str, Option<&str>)> {
