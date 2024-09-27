@@ -22,7 +22,7 @@ use core::{
 pub struct Allocator<T: GlobalAlloc>(pub T);
 
 thread_local! {
-    static PANICKING: Cell<bool> = Cell::new(false);
+    static PANICKING: Cell<bool> = const { Cell::new(false) };
 }
 
 #[allow(clippy::panic)]

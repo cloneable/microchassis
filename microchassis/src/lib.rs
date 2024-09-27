@@ -29,6 +29,7 @@
     clippy::cargo_common_metadata, // TODO: revisit
     clippy::missing_const_for_fn,
     clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
     clippy::module_name_repetitions,
     clippy::unnecessary_wraps,
     clippy::use_self,
